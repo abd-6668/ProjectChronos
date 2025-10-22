@@ -1,7 +1,7 @@
 #include <Arduino.h>
-#include <Adafruit_ILI9341.h>
-#include <Adafruit_GFX.h>
 #include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_ILI9341.h>
 
 #define TFT_CS   10
 #define TFT_DC   9
@@ -11,35 +11,39 @@ Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 
 void setup() {
   Serial.begin(115200);
-  delay(50);
+  delay(100);  // Increased delay for stability
   Serial.println("TFT init");
 
-  pinMode(7, OUTPUT);
-  digitalWrite(7, LOW);
-
-  tft.begin();
+  // Remove pin 7 control as LED is connected directly to 5V through resistor
+  
+  if (!tft.begin()) {
+    Serial.println("Could not initialize display");
+    while (1);  // Stop if display initialization fails
+  }
+  Serial.println("Display initialized");
+  
   tft.setRotation(1);
   tft.fillScreen(ILI9341_BLACK);
 
   tft.setCursor(10, 20);
   tft.setTextColor(ILI9341_WHITE);
   tft.setTextSize(2);
-  tft.print("Hello Wokwis");
-  Serial.println("Hello Wokwis");
+  tft.print("Hellos");
+  Serial.println("Hellos");
 
   tft.setCursor(10, 50);
   tft.setTextColor(ILI9341_YELLOW);
   tft.setTextSize(1);
-  tft.print("Project Chronoss");
-  Serial.println("Project Chronoss");
+  tft.print("Projecst");
+  Serial.println("Projecst");
 }
 
 void loop() {
   static unsigned long last = 0;
   if (millis() - last > 1000) {
     last = millis();
-    Serial.println("Hello Wokwiw");
-    Serial.println("Project Chronoss");
+    Serial.println("Hellos");
+    Serial.println("Projecst");
   }
   delay(10);
 }
