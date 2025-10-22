@@ -1,12 +1,11 @@
 #include <Arduino.h>
-#include <SPI.h>
-#include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
+#include <Adafruit_GFX.h>
+#include <SPI.h>
 
-// Pins used in diagram.json: MOSI=11, MISO=12, SCK=13
-#define TFT_CS   10
-#define TFT_DC   9
-#define TFT_RST  8
+#define TFT_CS   10;
+#define TFT_DC   9;
+#define TFT_RST  8;
 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 
@@ -15,9 +14,8 @@ void setup() {
   delay(50);
   Serial.println("TFT init");
 
-  // Backlight control: pin 7 sinks the LCD LED through the resistor in the diagram
   pinMode(7, OUTPUT);
-  digitalWrite(7, LOW); // drive LOW to turn the backlight on (common-anode through resistor to 5V)
+  digitalWrite(7, LOW);
 
   tft.begin();
   tft.setRotation(1);
@@ -37,17 +35,11 @@ void setup() {
 }
 
 void loop() {
-  // Periodically print the same messages so they always show in the serial monitor
   static unsigned long last = 0;
   if (millis() - last > 1000) {
     last = millis();
     Serial.println("Hello Wokwi");
     Serial.println("Project Chronos");
-  }
-  if (Serial.available()) {
-    int incomingByte = Serial.read();
-    Serial.print("I received: ");
-    Serial.println(incomingByte, DEC);
   }
   delay(10);
 }
