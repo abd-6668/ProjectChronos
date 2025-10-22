@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "author": "Jawad Atriss",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-breadboard-half", "id": "bb1", "top": 208.2, "left": 367.6, "attrs": {} },
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": -133.8, "left": -10.2, "attrs": {} },
+    { "type": "wokwi-ili9341", "id": "lcd1", "top": -277.6, "left": 412.5, "attrs": {} },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": 302.4,
+      "left": 172.25,
+      "rotate": 90,
+      "attrs": { "value": "220" }
+    }
+  ],
+  "connections": [
+    [ "uno:5V", "lcd1:VCC", "red", [] ],
+    [ "uno:GND", "lcd1:GND", "black", [] ],
+
+    [ "uno:11", "lcd1:MOSI", "green", [] ],
+    [ "uno:12", "lcd1:MISO", "green", [] ],
+    [ "uno:13", "lcd1:SCK", "green", [] ],
+
+    [ "uno:10", "lcd1:CS", "green", [] ],
+    [ "uno:9", "lcd1:D/C", "green", [] ],
+    [ "uno:8", "lcd1:RST", "green", [] ],
+
+    [ "uno:5V", "r1:1", "red", [] ],
+    [ "r1:2", "lcd1:LED", "green", [] ]
+  ],
+  "dependencies": {}
+}
