@@ -16,10 +16,7 @@ void setup() {
 
   // Remove pin 7 control as LED is connected directly to 5V through resistor
   
-  if (!tft.begin()) {
-    Serial.println("Could not initialize display");
-    while (1);  // Stop if display initialization fails
-  }
+  tft.begin();
   Serial.println("Display initialized");
   
   tft.setRotation(1);
@@ -28,22 +25,22 @@ void setup() {
   tft.setCursor(10, 20);
   tft.setTextColor(ILI9341_WHITE);
   tft.setTextSize(2);
-  tft.print("Hellos");
-  Serial.println("Hellos");
+  tft.print("Hellosss");
+  Serial.println("Hellosss");
 
   tft.setCursor(10, 50);
   tft.setTextColor(ILI9341_YELLOW);
   tft.setTextSize(1);
-  tft.print("Projecst");
-  Serial.println("Projecst");
+  tft.print("Projecssst");
+  Serial.println("Projecssst");
 }
 
 void loop() {
   static unsigned long last = 0;
   if (millis() - last > 1000) {
     last = millis();
-    Serial.println("Hellos");
-    Serial.println("Projecst");
+    Serial.println("Hellosss");
+    Serial.println("Projecssst");
   }
   delay(10);
 }
