@@ -29,7 +29,7 @@ void setup() {
   Serial.println("Hellosss");
 
   tft.setCursor(10, 50);
-  tft.setTextColor(ILI9341_YELLOW);
+  tft.setTextColor(ILI9341_GREEN);
   tft.setTextSize(1);
   tft.print("Projecssst");
   Serial.println("Projecssst");
