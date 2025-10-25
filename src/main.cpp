@@ -6,41 +6,49 @@
 #define TFT_CS   10
 #define TFT_DC   9
 #define TFT_RST  8
+#define GOLD 0xFEA0
 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 
+// Geometry for the static design
+const int xTimer = 5;
+const int yTimer = 40;
+const int widthTimer = 230;
+const int heightTimer = 90;
+
 void setup() {
-  Serial.begin(115200);
-  delay(100);  // Increased delay for stability
-  Serial.println("TFT init");
-
-  // Remove pin 7 control as LED is connected directly to 5V through resistor
-  
+  Serial.begin(9600);
   tft.begin();
-  Serial.println("Display initialized");
-  
-  tft.setRotation(1);
-  tft.fillScreen(ILI9341_BLACK);
 
-  tft.setCursor(10, 20);
-  tft.setTextColor(ILI9341_WHITE);
+  // Clear screen and draw header
+  tft.setRotation(0);
+  tft.fillScreen(ILI9341_WHITE);
+  tft.setTextColor(GOLD);
   tft.setTextSize(2);
-  tft.print("Hellosss");
-  Serial.println("Hellosss");
+  tft.setCursor(30, 160);
+  tft.print("Project Chronos");
 
-  tft.setCursor(10, 50);
-  tft.setTextColor(ILI9341_GREEN);
+  delay(1000);
+
+  // Main header
+  tft.fillScreen(ILI9341_WHITE);
+  tft.setTextColor(ILI9341_BLACK);
+  tft.setTextSize(2);
+  tft.setCursor(5, 10);
+  tft.print("Project Chronos");
+  tft.setCursor(220, 10);
+  tft.setTextSize(2);
+  tft.print("+");
+
+  // Draw the timer 'div' (static design only)
+  tft.drawRect(xTimer, yTimer, widthTimer, heightTimer, ILI9341_BLACK);
+  tft.fillRect(xTimer + 1, yTimer + 1, widthTimer - 2, heightTimer - 2, ILI9341_WHITE);
   tft.setTextSize(1);
-  tft.print("Projecssst");
-  Serial.println("Projecssst");
+  tft.setCursor(xTimer + 8, yTimer + 6);
+  tft.print("Timers");
+  tft.drawFastHLine(xTimer + 4, yTimer + 20, widthTimer - 8, ILI9341_BLACK);
 }
 
 void loop() {
-  static unsigned long last = 0;
-  if (millis() - last > 1000) {
-    last = millis();
-    Serial.println("Hellosss");
-    Serial.println("Projecssst");
-  }
-  delay(10);
+  // Intentionally empty: logic removed per request. Design remains.
 }
