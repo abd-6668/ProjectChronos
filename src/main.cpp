@@ -13,20 +13,14 @@ const int buttonEsc = A0,arrowUp = A1,arrowDown = A2,arrowRight= A3,arrowLeft = 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 
 bool running = false;
-int lastButtonOkState = HIGH;
-int lastButtonAddState = HIGH;
+int lastButtonOkState = HIGH, lastButtonAddState = HIGH;
 unsigned long startTime = 0;
 unsigned long previosSecond = 0;
-int lightUp = 0;
-const int xTimer = 5;
-const int yTimer = 50;
-const int widthTimer = 230;
-const int heightTimer = 80;
+const int xTimer = 5, yTimer = 50;
+const int widthTimer = 230, heightTimer = 80;
 const int buzzerPin = 4;
-const int bluePin = 5;
-const int greenPin = 6;
-const int redPin = 7;
-int timers = 0;
+const int bluePin = 5, greenPin = 6, redPin = 7;
+int timers = 0, lightUp = 0;
 int charWidth, charHeight;
 int milliseconds = 0, seconds = 0, minutes = 0, hours = 0;
 
