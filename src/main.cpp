@@ -2,6 +2,7 @@
 #include <SPI.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
+#include <bmp.h>
 
 #define TFT_CS   10
 #define TFT_DC   9
@@ -11,55 +12,61 @@
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 
 const int buttonEsc = A0,arrowUp = A1,arrowDown = A2,arrowRight= A3,arrowLeft = A4,buttonAdd = A5,buttonOk = 2,buttonPause = 3,buttonResume = 12;
+// Esc black - arrows red - Add green - Ok white - Pause yellow - Resume blue
 bool running = false;
-int lastButtonOkState = HIGH, lastButtonAddState = HIGH;
+int lastButtonOkState = HIGH, lastButtonAddState = HIGH , lastArrowUpState = HIGH, lastArrowDownState = HIGH, lastArrowRightState = HIGH, lastArrowLeftState = HIGH, lastButtonEscState = HIGH;
 unsigned long startTime = 0;
 unsigned long previosSecond = 0;
 const int xTimer = 5, yTimer = 50;
 const int widthTimer = 230, heightTimer = 80;
 const int buzzerPin = 4;
 const int bluePin = 5, greenPin = 6, redPin = 7;
-int timers = 0, lightUp = 0;
+int timers = 0, lightUp = 0, selectedTimer = -1, selectedField = 0;
+const int maxTimers = 3;
 int charWidth, charHeight;
 int milliseconds = 0, seconds = 0, minutes = 0, hours = 0;
 
+void textMiddle (int Width, int Height, int Color, char* string, int screenColor, int size, int delayer);
+
 void setup() {
   Serial.begin(9600);
-  int stateButtonAdd = digitalRead(buttonAdd);
 
   pinMode(buttonOk, INPUT_PULLUP);
+  pinMode(buttonAdd, INPUT_PULLUP);
+  pinMode(buttonEsc, INPUT_PULLUP);
+  pinMode(buttonPause, INPUT_PULLUP);
+  pinMode(buttonResume, INPUT_PULLUP);
+  pinMode(arrowUp, INPUT_PULLUP);
+  pinMode(arrowLeft, INPUT_PULLUP);
+  pinMode(arrowRight, INPUT_PULLUP);
+  pinMode(arrowDown, INPUT_PULLUP);
   pinMode(bluePin, OUTPUT);
   pinMode(greenPin, OUTPUT);
   pinMode(redPin, OUTPUT);
   pinMode(buzzerPin, OUTPUT);
+
   digitalWrite(redPin, HIGH);
   digitalWrite(greenPin, HIGH);
   digitalWrite(bluePin, HIGH);
 
   tft.begin();
 
-  charWidth = 12; // First Page (Title)
-  charHeight = 16;
-  int lineWidthTitle = strlen("Project Chronos") * charWidth;
-  int xTitle = (240 - lineWidthTitle) / 2;
-  int yTitle = (320 - charHeight) / 2;
-  tft.setCursor(xTitle, yTitle);
-  tft.setRotation(0);
-  tft.fillScreen(ILI9341_WHITE);
-  tft.setTextColor(GOLD);
-  tft.setTextSize(2);
-  tft.print("Project Chronos");
+  textMiddle(12, 16, GOLD, "Project Chronos", ILI9341_WHITE, 2, 2000);
 
-  delay(1000);
+  textMiddle(12, 16, ILI9341_BLACK, "Loading...", ILI9341_WHITE, 2, 1000);
 
-  tft.fillScreen(ILI9341_WHITE); // Second Page (Main Project)
+  tft.fillScreen(ILI9341_WHITE); // Main Page
   tft.setTextColor(GOLD);
   tft.setTextSize(2);
   tft.setCursor(5, 10);
   tft.print("Project Chronos");
+  tft.setTextColor(ILI9341_BLACK);
+  tft.setTextSize(0.75);
+  tft.drawRect(200, 6, 25, 25, ILI9341_BLACK);
+  tft.setCursor(204, 13.5);
+  tft.print("ESC");
   tft.drawFastHLine(0, 40, 240, ILI9341_BLACK);
 
-  if (timers == 0) {
     tft.setTextSize(1);
     tft.setTextColor(ILI9341_BLACK);
     const char* line1 = "No timers to be displayed,";
@@ -75,20 +82,72 @@ void setup() {
     tft.print(line1);
     tft.setCursor(x2, y + charHeight * 2);
     tft.print(line2);
-  } else {
-    tft.drawRect(xTimer, yTimer, widthTimer, heightTimer, ILI9341_BLACK);
-    tft.fillRect(xTimer + 1, yTimer + 1, widthTimer - 2, heightTimer - 2, ILI9341_WHITE);
-    tft.setTextSize(1);
-    tft.setCursor(xTimer + 8, yTimer + 6);
-    tft.print("Timers");
-    tft.drawFastHLine(xTimer + 4, yTimer + 20, widthTimer - 8, ILI9341_BLACK);
-  }
 }
 
 void loop() {
 int stateButtonOk = digitalRead(buttonOk);
+int stateButtonAdd = digitalRead(buttonAdd);
+int stateArrowUp = digitalRead(arrowUp);
+int stateArrowDown = digitalRead(arrowDown);
+int stateArrowRight = digitalRead(arrowRight);
+int stateArrowLeft = digitalRead(arrowLeft);
+int stateButtonEsc = digitalRead(buttonEsc);
 
-  if (stateButtonOk == LOW && lastButtonOkState == HIGH) {
+  if (stateButtonAdd == LOW && lastButtonAddState == HIGH) {
+    if (timers < maxTimers) {
+    timers++;
+    if (timers == 1) {
+      tft.fillRect(0, 100, 240, 200, ILI9341_WHITE);
+    }
+    
+    int index = timers;
+    int yTimer = 50 + (index - 1) * 85;
+    tft.drawRect(xTimer, yTimer, widthTimer, heightTimer, ILI9341_BLACK);
+    tft.fillRect(xTimer + 1, yTimer + 1, widthTimer - 2, heightTimer - 2, ILI9341_WHITE);
+    tft.setTextSize(1);
+    tft.setCursor(xTimer + 8, yTimer + 6);
+    tft.print("Timer:");
+    tft.setCursor(xTimer + 48, yTimer + 6);
+    tft.print(timers);
+    tft.drawFastHLine(xTimer + 4, yTimer + 20, widthTimer - 8, ILI9341_BLACK);
+    tft.setTextSize(1.75);
+    tft.setCursor(xTimer + 8, yTimer + 32);
+    tft.print("Timer: 00:00:00");
+    tft.setCursor(xTimer + 8, yTimer + 52);
+    tft.print("Stopwatch: 00:00:00");
+    }
+    delay(1000);
+  }
+  lastButtonAddState  = stateButtonAdd;
+
+if (stateArrowUp == LOW && lastArrowUpState == HIGH) {
+    selectedTimer--;
+    if (selectedTimer < 0) selectedTimer = timers - 1;
+}
+if (stateArrowDown == LOW && lastArrowDownState == HIGH) {
+    selectedTimer++;
+    if (selectedTimer >= timers) selectedTimer = 0;
+}
+  for (int i = 0; i < timers; i++) {
+    int yBox = 50 + i * 85;
+    if (i == selectedTimer) {
+        tft.drawRect(xTimer, yBox, widthTimer, heightTimer, ILI9341_LIGHTGREY);
+    } else {
+        tft.drawRect(xTimer, yBox, widthTimer, heightTimer, ILI9341_BLACK);
+    }
+}
+  lastArrowDownState = stateArrowDown;
+  lastArrowUpState = stateArrowUp;
+
+if (stateButtonOk == LOW && lastButtonOkState == HIGH) {
+
+}
+
+if (stateButtonEsc == LOW && lastButtonEscState == HIGH) {
+  
+}
+
+/*  if (stateButtonOk == LOW && lastButtonOkState == HIGH) {
     running = true;
     startTime = millis();
   }
@@ -128,5 +187,20 @@ int stateButtonOk = digitalRead(buttonOk);
       lightUp++;
     }
   }
+*/
+}
 
+void textMiddle(int Width, int Height, int Color, char* string, int screenColor, int size, int delayer) {
+  charWidth = Width;
+  charHeight = Height;
+  int lineWidthTitle = strlen(string) * charWidth;
+  int xTitle = (240 - lineWidthTitle) / 2;
+  int yTitle = (320 - charHeight) / 2;
+  tft.setCursor(xTitle, yTitle);
+  tft.setRotation(0);
+  tft.fillScreen(screenColor);
+  tft.setTextColor(Color);
+  tft.setTextSize(2);
+  tft.print(string);
+  delay(delayer);
 }
