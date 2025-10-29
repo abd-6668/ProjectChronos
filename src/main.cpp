@@ -204,3 +204,5 @@ void textMiddle(int Width, int Height, int Color, char* string, int screenColor,
   tft.print(string);
   delay(delayer);
 }
+
+kjihihuio
