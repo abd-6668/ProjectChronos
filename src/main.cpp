@@ -10,35 +10,25 @@
 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 
-const int buttonEsc   = A0;
-const int arrowUp     = A1;
-const int arrowDown   = A2;
-const int arrowRight  = A3;
-const int arrowLeft   = A4;
-const int buttonAdd   = A5;
-const int buttonOk    = 2;
-const int buttonPause = 3;
-const int buttonStart= 12;
+const int buttonEsc = A0;
+const int arrowUp = A1;
+const int arrowDown = A2;
+const int arrowRight = A3;
+const int arrowLeft = A4;
+const int buttonAdd = A5;
+const int buttonOk = 2;
+const int buttonRemove = 3;
+const int buttonStart = 12;
 
-const int buzzerPin = 4;
-const int bluePin   = 5;
-const int greenPin  = 6;
-const int redPin    = 7;
+const int buzzerPin = 4, bluePin = 5, greenPin = 6, redPin = 7;
 
 bool running = false;
-unsigned long startTime = 0;
-unsigned long previosSecond = 0;
+unsigned long startTime = 0, previosSecond = 0;
 
-const int xTimer = 5;
-const int widthTimer = 230;
-const int heightTimer = 80;
-const int maxTimers = 3;
+const int xTimer = 5, widthTimer = 230, heightTimer = 80, maxTimers = 3;
 
-int timers = 0;
-int selectedTimer = -1;
-int menuField = 0;
-int selectedOption = -1;
-int page = 0; // 0 = main, 1 = menu, 2 = settings, 3 = help, 4 = about
+int timers = 0, selectedTimer = -1, menuField = 0;
+int selectedOption = -1, page = 0; // 0 = main, 1 = menu, 2 = settings, 3 = help, 4 = about
 bool menuNeedsRedraw = false;
 int lightUp = 0;
 
@@ -49,7 +39,7 @@ int lastArrowDownState = HIGH;
 int lastArrowRightState = HIGH;
 int lastArrowLeftState = HIGH;
 int lastButtonEscState = HIGH;
-int lastPauseState = HIGH;
+int lastRemoveState = HIGH;
 int lastStartState = HIGH;
 
 int charWidth = 6, charHeight = 8;
@@ -88,7 +78,7 @@ void setup() {
   pinMode(buttonOk, INPUT_PULLUP);
   pinMode(buttonAdd, INPUT_PULLUP);
   pinMode(buttonEsc, INPUT_PULLUP);
-  pinMode(buttonPause, INPUT_PULLUP);
+  pinMode(buttonRemove, INPUT_PULLUP);
   pinMode(buttonStart, INPUT_PULLUP);
   pinMode(arrowUp, INPUT_PULLUP);
   pinMode(arrowLeft, INPUT_PULLUP);
@@ -143,7 +133,7 @@ void loop() {
   int stateArrowRight = digitalRead(arrowRight);
   int stateArrowLeft = digitalRead(arrowLeft);
   int stateButtonEsc = digitalRead(buttonEsc);
-  int statePause = digitalRead(buttonPause);
+  int stateRemove = digitalRead(buttonRemove);
   int stateStart = digitalRead(buttonStart);
 
   unsigned long now = millis();
@@ -428,7 +418,7 @@ lastStartState = stateStart;
   lastArrowDownState = stateArrowDown;
   lastArrowRightState = stateArrowRight;
   lastArrowLeftState = stateArrowLeft;
-  lastPauseState = statePause;
+  lastRemoveState = stateRemove;
   lastStartState = stateStart;
   delay(35);
 }
