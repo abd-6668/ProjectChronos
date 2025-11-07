@@ -28,9 +28,12 @@ unsigned long startTime = 0, previosSecond = 0;
 const int xTimer = 5, widthTimer = 230, heightTimer = 80, maxTimers = 3;
 
 int timers = 0, selectedTimer = -1, menuField = 0, lastMenuField = -1;
-int selectedOption = -1, page = 0; // 0 = main, 1 = menu, 2 = settings, 3 = help, 4 = about
+int selectedOption = -1, page = 0;
 bool menuNeedsRedraw = false;
 int lightUp = 0;
+int settingsField = 0, lastSettingsField = -1;
+bool settingsNeedsRedraw = false;
+const char* settingsOptions[7] = {"Contact Us", "Light Mode", "History", "Current Time", "Help", "About Us", "Restart"};
 
 int lastButtonOkState = HIGH;
 int lastButtonAddState = HIGH;
@@ -70,6 +73,7 @@ void drawTimer(int i);
 void drawMenu();
 void drawSubPage(const char* title, const char* content);
 void textMiddle(int Width, int Height, int Color, const char* string, int screenColor, int size, int delayer);
+void drawSettingsMenu();
 
 void setup() {
   Serial.begin(115200);
@@ -84,7 +88,6 @@ void setup() {
   pinMode(arrowLeft, INPUT_PULLUP);
   pinMode(arrowRight, INPUT_PULLUP);
   pinMode(arrowDown, INPUT_PULLUP);
-
   pinMode(bluePin, OUTPUT);
   pinMode(greenPin, OUTPUT);
   pinMode(redPin, OUTPUT);
@@ -100,7 +103,7 @@ void setup() {
 
   // intro
   textMiddle(12, 16, GOLD, "Project Chronos", ILI9341_WHITE, 2, 1500);
-  textMiddle(6, 8, ILI9341_BLACK, "Beta Version 1.07...", ILI9341_WHITE, 1, 700);
+  textMiddle(6, 8, ILI9341_BLACK, "Beta Version 1.09...", ILI9341_WHITE, 1, 700);
 
   // initialize timers data
   for (int i=0; i<maxTimers; ++i) {
@@ -172,17 +175,51 @@ void loop() {
     if (page == 1) { //menu selection
       selectedOption = menuField;
        if (selectedOption == 0) {
-    page = 2;
-    drawSubPage("Settings", "");  // Empty content, handled in function
+        page = 2;
+        settingsField = 0;
+        lastSettingsField = -1;
+        settingsNeedsRedraw = true;
   } else if (selectedOption == 1) {
     page = 3;
-    drawSubPage("Help", "");      // Content is hardcoded above
+    drawSubPage("Help", "");
   } else if (selectedOption == 2) {
     page = 4;
-    drawSubPage("About Us", "");  // Content is hardcoded above
+    drawSubPage("About Us", "");
       } else if (selectedOption == 3) {
         mainPage();
       }
+    }  else if (page == 2) { // settings menu selection
+      switch(settingsField) {
+        case 0:
+          page = 10;
+          drawSubPage("Contact Us", "Soon...");
+          break;
+        case 1:
+          page = 11;
+          drawSubPage("Light Mode", "Soon...");
+          break;
+        case 2:
+          page = 12;
+          drawSubPage("History", "Soon...");
+          break;
+        case 3:
+          page = 13;
+          drawSubPage("Current Time", "Soon...");
+          break;
+        case 4:
+          page = 14;
+          drawSubPage("Help", "Soon...");
+          break;
+        case 5:
+          page = 15;
+          drawSubPage("About Us", "Soon...");
+          break;
+        case 6:
+          page = 16;
+          drawSubPage("Restart", "Soon...");
+          break;
+      }
+      delay(140);
     } else if (page == 0) {
       if (selectedTimer >= 0 && selectedTimer < timers) { //enter edit mode for timer
         timerArr[selectedTimer].editing = true;
@@ -247,6 +284,10 @@ void loop() {
       menuField--;
       if (menuField < 0) menuField = 3;
       menuNeedsRedraw = true;
+    } else if (page == 2) {
+      settingsField--;
+      if (settingsField < 0) settingsField = 6;
+      settingsNeedsRedraw = true;
     }
     delay(100);
   }
@@ -266,6 +307,10 @@ void loop() {
       menuField++;
       if (menuField > 3) menuField = 0;
       menuNeedsRedraw = true;
+    } else if (page == 2) {
+      settingsField++;
+      if (settingsField > 6) settingsField = 0;
+      settingsNeedsRedraw = true;
     }
     delay(100);
   }
@@ -324,45 +369,67 @@ lastStartState = stateStart;
     }
   }
 
-  if (stateButtonEsc == LOW && lastButtonEscState == HIGH) { //edit - menu handle
-    if (page == 0) { //save value of timer
-      if (selectedTimer >= 0 && selectedTimer < timers && timerArr[selectedTimer].editing) {
-        TimerData &T = timerArr[selectedTimer];
-        uint8_t h = T.digits[0]*10 + T.digits[1];
-        uint8_t m = T.digits[2]*10 + T.digits[3];
-        uint8_t s = T.digits[4]*10 + T.digits[5];
-        unsigned long totalSeconds = (unsigned long)h*3600UL + (unsigned long)m*60UL + (unsigned long)s;
-        T.remainingMillis = totalSeconds * 1000UL;
-        T.stopwatchElapsedMillis = 0;
-        T.editing = false;
-        T.triggered = false;
-        T.lastRemainingSec = 0xFFFFFFFFUL;
-        T.lastStopwatchSec = 0xFFFFFFFFUL;
-      } else { //if not editing open menu
-        page = 1;
-        menuField = 0;
-        lastMenuField = -1;
-        menuNeedsRedraw = true;
-        drawMenu();
-      }
-    } else if (page == 1) { //return to mainpage
-      mainPage();
-      lastMenuField = -1;
-    } else if (page >= 2) { //return to menu
+    if (stateButtonEsc == LOW && lastButtonEscState == HIGH) {
+  delay(200);
+  
+  if (page == 0) { // Main page
+    if (selectedTimer >= 0 && selectedTimer < timers && timerArr[selectedTimer].editing) {
+      TimerData &T = timerArr[selectedTimer];
+      uint8_t h = T.digits[0]*10 + T.digits[1];
+      uint8_t m = T.digits[2]*10 + T.digits[3];
+      uint8_t s = T.digits[4]*10 + T.digits[5];
+      unsigned long totalSeconds = (unsigned long)h*3600UL + (unsigned long)m*60UL + (unsigned long)s;
+      T.remainingMillis = totalSeconds * 1000UL;
+      T.stopwatchElapsedMillis = 0;
+      T.editing = false;
+      T.triggered = false;
+      T.lastRemainingSec = 0xFFFFFFFFUL;
+      T.lastStopwatchSec = 0xFFFFFFFFUL;
+    } else { // Open main menu
       page = 1;
       menuField = 0;
       lastMenuField = -1;
       menuNeedsRedraw = true;
       drawMenu();
     }
-    delay(200);
+  } else if (page == 1) { // page handle
+    mainPage();
+    lastMenuField = -1;
+  } else if (page == 2) {
+    page = 1;
+    menuField = 0;
+    lastMenuField = -1;
+    menuNeedsRedraw = true;
+    drawMenu();
+  } else if (page >= 3 && page <= 9) {
+    page = 1;
+    menuField = 0;
+    lastMenuField = -1;
+    menuNeedsRedraw = true;
+    drawMenu();
+  } else {
+    page = 2;
+    settingsField = 0;
+    lastSettingsField = -1;
+    settingsNeedsRedraw = true;
+    drawSettingsMenu();
   }
+}
   lastButtonEscState = stateButtonEsc;
 
   if (page == 1 && menuNeedsRedraw) { //menu handle
     drawMenu();
     menuNeedsRedraw = false;
   }
+
+  // Redraw menus when needed
+if (page == 1 && menuNeedsRedraw) {
+  drawMenu();
+  menuNeedsRedraw = false;
+} else if (page == 2 && settingsNeedsRedraw) {
+  drawSettingsMenu();
+  settingsNeedsRedraw = false;
+}
 
   if (page == 0) { //stopwatch functionality
     if (running) {
@@ -604,8 +671,8 @@ void drawMenu() {
     int old = lastMenuField;
     int oldRectY = yPositions[old] - 12;
     if (oldRectY >= 10 && oldRectY + 42 <= 310) {
-      tft.fillRect(30, oldRectY, 180, 42, ILI9341_WHITE);  // Clear area first
-      tft.drawRoundRect(30, oldRectY, 180, 42, 6, ILI9341_BLACK);  // Then draw border
+      tft.fillRect(30, oldRectY, 180, 42, ILI9341_WHITE);
+      tft.drawRoundRect(30, oldRectY, 180, 42, 6, ILI9341_BLACK);
     }
     
     tft.setTextSize(2);
@@ -656,11 +723,11 @@ void drawSubPage(const char* title, const char* content) {
     tft.print(F(" SUPPORT:\n\n  ProjectChronos.support@gmail.com"));
   } 
   else if (strcmp(title, "About Us") == 0) {
-    tft.print(F(" CHRONOS v1.08\n\n"));
+    tft.print(F(" CHRONOS v1.09\n\n"));
     tft.print(F(" By University Antonine\n\n\n"));
     tft.print(F(" TEAM (4):\n\n  Abdallah (Lead Software)\n  Roni (Software and Hardware)\n  Jawad (Lead Hardware)\n  Adam (Testing)\n\n\n"));
     tft.print(F(" FEATURES:\n\n  3 timers, RGB LEDs\n  Audio alerts, Stopwatch\n  Edit mode, and Menu\n\n\n"));
-    tft.print(F(" Last Update: 08/11/2025\n\n  -Optimization\n  -Fixed Some Minor Bugs\n  -Fixed Stopwatch Bug\n  -Added Menu Information\n  -Fixed Menu Functionality\n  Version: 1.08\n\n\n"));
+    tft.print(F(" Last Update: 08/11/2025\n\n  -Optimization\n  -Fixed Some Minor Bugs\n  -Fixed Settings Design\n  -Added Settings Page\n  -Fixed Settings Functionality\n  Version: 1.09\n\n\n"));
     tft.print(F(" Thank you for using Project Chronos"));
   }
   else if (strcmp(title, "Settings") == 0) {
@@ -693,6 +760,80 @@ void textMiddle(int Width, int Height, int Color, const char* string, int screen
   tft.setCursor(xTitle, yTitle);
   tft.print(string);
   if (delayer > 0) delay(delayer);
+}
+
+void drawSettingsMenu() {
+  const char* options[7] = {"Contact Us", "Light Mode", "History", "Current Time", "Help", "About Us", "Restart"};
+  
+  if (lastSettingsField == -1) {
+    tft.fillScreen(ILI9341_WHITE);
+
+    tft.fillRect(0, 0, 240, 40, GOLD);
+    tft.setTextWrap(false);
+    tft.setTextColor(ILI9341_WHITE);
+    tft.setTextSize(2);
+    tft.setCursor((240 - 110) / 2, 10);
+    tft.print("Settings");
+
+    for (int i = 0; i < 7; i++) {
+      int y = 50 + i * 34;
+      
+      if (i > 0) {
+        tft.drawFastHLine(25, y - 3, 190, ILI9341_LIGHTGREY);
+      }
+      
+      if (i == settingsField) {
+        tft.setTextSize(2);
+        tft.setTextColor(GOLD);
+        int tw = strlen(options[i]) * 12;
+        int x = (240 - tw) / 2;
+        tft.setCursor(x, y);
+        tft.print(options[i]);
+      } else {
+        tft.setTextSize(1);
+        tft.setTextColor(ILI9341_BLACK);
+        int tw = strlen(options[i]) * 6;
+        int x = (240 - tw) / 2;
+        tft.setCursor(x, y);
+        tft.print(options[i]);
+      }
+    }
+    
+    // Back button
+    tft.drawLine(0, 290, 240, 290, GOLD);
+    tft.setTextSize(2);
+    tft.setTextColor(GOLD);
+    const char* back = "Back [Esc]";
+    int backWidth = strlen(back) * 11;
+    int backX = (240 - backWidth) / 2;
+    tft.setCursor(backX, 300);
+    tft.print(back);
+  }
+  else if (settingsField != lastSettingsField) {
+    int oldY = 50 + lastSettingsField * 34;
+    tft.fillRect(20, oldY - 5, 200, 34, ILI9341_WHITE);
+    if (lastSettingsField > 0) tft.drawFastHLine(25, oldY - 3, 190, ILI9341_LIGHTGREY);
+    
+    tft.setTextSize(1);
+    tft.setTextColor(ILI9341_BLACK);
+    int tw = strlen(options[lastSettingsField]) * 6;
+    int x = (240 - tw) / 2;
+    tft.setCursor(x, oldY);
+    tft.print(options[lastSettingsField]);
+    
+    int newY = 50 + settingsField * 34;
+    tft.fillRect(20, newY - 5, 200, 34, ILI9341_WHITE);
+    if (settingsField > 0) tft.drawFastHLine(25, newY - 3, 190, ILI9341_LIGHTGREY);
+    
+    tft.setTextSize(2);
+    tft.setTextColor(GOLD);
+    tw = strlen(options[settingsField]) * 12;
+    x = (240 - tw) / 2;
+    tft.setCursor(x, newY);
+    tft.print(options[settingsField]);
+  }
+  
+  lastSettingsField = settingsField;
 }
 
 void mainPage() { //main page
