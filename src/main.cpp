@@ -27,7 +27,7 @@ unsigned long startTime = 0, previosSecond = 0;
 
 const int xTimer = 5, widthTimer = 230, heightTimer = 80, maxTimers = 3;
 
-int timers = 0, selectedTimer = -1, menuField = 0;
+int timers = 0, selectedTimer = -1, menuField = 0, lastMenuField = -1;
 int selectedOption = -1, page = 0; // 0 = main, 1 = menu, 2 = settings, 3 = help, 4 = about
 bool menuNeedsRedraw = false;
 int lightUp = 0;
@@ -171,15 +171,15 @@ void loop() {
   if (stateButtonOk == LOW && lastButtonOkState == HIGH) { //menu
     if (page == 1) { //menu selection
       selectedOption = menuField;
-      if (selectedOption == 0) {
-        page = 2;
-        drawSubPage("Settings", "Soon...");
-      } else if (selectedOption == 1) {
-        page = 3;
-        drawSubPage("Help", "Soon...");
-      } else if (selectedOption == 2) {
-        page = 4;
-        drawSubPage("About Us", "Made by Project Chronos");
+       if (selectedOption == 0) {
+    page = 2;
+    drawSubPage("Settings", "");  // Empty content, handled in function
+  } else if (selectedOption == 1) {
+    page = 3;
+    drawSubPage("Help", "");      // Content is hardcoded above
+  } else if (selectedOption == 2) {
+    page = 4;
+    drawSubPage("About Us", "");  // Content is hardcoded above
       } else if (selectedOption == 3) {
         mainPage();
       }
@@ -341,14 +341,17 @@ lastStartState = stateStart;
       } else { //if not editing open menu
         page = 1;
         menuField = 0;
+        lastMenuField = -1;
         menuNeedsRedraw = true;
         drawMenu();
       }
     } else if (page == 1) { //return to mainpage
       mainPage();
+      lastMenuField = -1;
     } else if (page >= 2) { //return to menu
       page = 1;
       menuField = 0;
+      lastMenuField = -1;
       menuNeedsRedraw = true;
       drawMenu();
     }
@@ -562,39 +565,73 @@ void drawTimer(int i) { //timer draw
   }
 }
 
-void drawMenu() { //menu design
-  tft.fillScreen(ILI9341_WHITE);
-
-  tft.drawRoundRect(20, 30, 200, 300, 8, ILI9341_BLACK);
-  tft.setTextWrap(false);
-
-  tft.setTextColor(GOLD);
-  tft.setTextSize(3);
-  int titleWidth = 4 * 18;
-  int titleX = (240 - titleWidth) / 2;
-  tft.setCursor(titleX, 45);
-  tft.print("Menu");
-
+void drawMenu() {
   const char* options[4] = {"Settings", "Help", "About Us", "Close [Esc]"};
   int yPositions[4] = {100, 160, 220, 280};
+  
+  if (lastMenuField == -1) {
+    tft.fillScreen(ILI9341_WHITE);
+    tft.drawRoundRect(20, 10, 200, 300, 8, ILI9341_BLACK);
+    
+    tft.setTextWrap(false);
+    tft.setTextColor(GOLD);
+    tft.setTextSize(3);
+    tft.setCursor((240 - 72) / 2, 45);
+    tft.print("Menu");
+    
 
-  for (int i=0; i<4; ++i) {
-    if (i == menuField) {
-      tft.fillRoundRect(30, yPositions[i] - 12, 180, 42, 6, GOLD);
-      tft.setTextColor(ILI9341_WHITE);
-    } else {
-      tft.setTextColor(ILI9341_BLACK);
+    for (int i = 0; i < 4; i++) {
+      int rectY = yPositions[i] - 12;
+      if (i == menuField) {
+        if (rectY >= 10 && rectY + 42 <= 310) {
+          tft.fillRoundRect(30, rectY, 180, 42, 6, GOLD);
+        }
+        tft.setTextColor(ILI9341_WHITE);
+      } else {
+        if (rectY >= 10 && rectY + 42 <= 310) {
+          tft.drawRoundRect(30, rectY, 180, 42, 6, ILI9341_BLACK);
+        }
+        tft.setTextColor(ILI9341_BLACK);
+      }
+      tft.setTextSize(2);
+      int tw = strlen(options[i]) * 11;
+      int x = (240 - tw) / 2;
+      tft.setCursor(x, yPositions[i]);
+      tft.print(options[i]);
     }
-    tft.setTextSize(2);
-    int tw = strlen(options[i]) * 11;
-    int x = (240 - tw) / 2;
-    tft.setCursor(x, yPositions[i]);
-    tft.print(options[i]);
   }
+  else if (menuField != lastMenuField) {
+    int old = lastMenuField;
+    int oldRectY = yPositions[old] - 12;
+    if (oldRectY >= 10 && oldRectY + 42 <= 310) {
+      tft.fillRect(30, oldRectY, 180, 42, ILI9341_WHITE);  // Clear area first
+      tft.drawRoundRect(30, oldRectY, 180, 42, 6, ILI9341_BLACK);  // Then draw border
+    }
+    
+    tft.setTextSize(2);
+    tft.setTextColor(ILI9341_BLACK);
+    int x = (240 - strlen(options[old]) * 11) / 2;
+    tft.setCursor(x, yPositions[old]);
+    tft.print(options[old]);
+    
+    int current = menuField;
+    int currentRectY = yPositions[current] - 12;
+    if (currentRectY >= 10 && currentRectY + 42 <= 310) {
+      tft.fillRoundRect(30, currentRectY, 180, 42, 6, GOLD);
+    }
+    
+    tft.setTextSize(2);
+    tft.setTextColor(ILI9341_WHITE);
+    x = (240 - strlen(options[current]) * 11) / 2;
+    tft.setCursor(x, yPositions[current]);
+    tft.print(options[current]);
+  }
+  
+  lastMenuField = menuField;
 }
 
 
-void drawSubPage(const char* title, const char* content) { //subpage menu
+void drawSubPage(const char* title, const char* content) {
   tft.fillScreen(ILI9341_WHITE);
   tft.setTextWrap(true);
 
@@ -606,10 +643,32 @@ void drawSubPage(const char* title, const char* content) { //subpage menu
   tft.setCursor(titleX, 10);
   tft.print(title);
 
-  tft.setTextSize(2);
+  tft.setTextSize(1);
   tft.setTextColor(ILI9341_BLACK);
-  tft.setCursor(18, 80);
-  tft.print(content);
+  tft.setCursor(0, 42);
+
+  if (strcmp(title, "Help") == 0) {
+    tft.print(F(" QUICK START:\n\n"));
+    tft.print(F(" ADD TIMER:\n\n  Press '+' (Max 3)\n\n\n"));
+    tft.print(F(" EDIT MODE:\n\n  Arrows→Select→OK\n\n  Set digits→ESC saves\n\n\n"));
+    tft.print(F(" RUN/PAUSE:\n\n  Select→START button\n\n\n"));
+    tft.print(F(" RGB LIGHTS:\n\n  Green=Run\n\n  Blue=Menu\n\n  Red=Done\n\n\n"));
+    tft.print(F(" SUPPORT:\n\n  ProjectChronos.support@gmail.com"));
+  } 
+  else if (strcmp(title, "About Us") == 0) {
+    tft.print(F(" CHRONOS v1.08\n\n"));
+    tft.print(F(" By University Antonine\n\n\n"));
+    tft.print(F(" TEAM (4):\n\n  Abdallah (Lead Software)\n  Roni (Software and Hardware)\n  Jawad (Lead Hardware)\n  Adam (Testing)\n\n\n"));
+    tft.print(F(" FEATURES:\n\n  3 timers, RGB LEDs\n  Audio alerts, Stopwatch\n  Edit mode, and Menu\n\n\n"));
+    tft.print(F(" Last Update: 08/11/2025\n\n  -Optimization\n  -Fixed Some Minor Bugs\n  -Fixed Stopwatch Bug\n  -Added Menu Information\n  -Fixed Menu Functionality\n  Version: 1.08\n\n\n"));
+    tft.print(F(" Thank you for using Project Chronos"));
+  }
+  else if (strcmp(title, "Settings") == 0) {
+    tft.print(F("  Soon..."));
+  }
+  else {
+    tft.print(content);
+  }
 
   tft.drawLine(0, 290, 240, 290, GOLD);
   tft.setTextSize(2);
