@@ -74,6 +74,7 @@ void drawMenu();
 void drawSubPage(const char* title, const char* content);
 void textMiddle(int Width, int Height, int Color, const char* string, int screenColor, int size, int delayer);
 void drawSettingsMenu();
+void deleteTimer(int index);
 
 void setup() {
   Serial.begin(115200);
@@ -103,7 +104,7 @@ void setup() {
 
   // intro
   textMiddle(12, 16, GOLD, "Project Chronos", ILI9341_WHITE, 2, 1500);
-  textMiddle(6, 8, ILI9341_BLACK, "Beta Version 1.09...", ILI9341_WHITE, 1, 700);
+  textMiddle(12, 16, ILI9341_BLACK, "Version 1.1", ILI9341_WHITE, 2, 700);
 
   // initialize timers data
   for (int i=0; i<maxTimers; ++i) {
@@ -166,6 +167,13 @@ void loop() {
       timerArr[idx].lastEditDigit = -1;
 
       if (selectedTimer < 0) selectedTimer = 0;
+        mainPage();
+        for (int t = 0; t < timers; t++) {
+            timerArr[t].lastRunning = !timerArr[t].running;
+            timerArr[t].lastTriggered = !timerArr[t].triggered;
+            timerArr[t].lastSelected = false;
+            drawTimer(t);
+        }
     }
     delay(200);
   }
@@ -192,11 +200,11 @@ void loop() {
       switch(settingsField) {
         case 0:
           page = 10;
-          drawSubPage("Contact Us", "Soon...");
+          drawSubPage("Contact Us", "");
           break;
         case 1:
           page = 11;
-          drawSubPage("Light Mode", "Soon...");
+          drawSubPage("Light Mode", "");
           break;
         case 2:
           page = 12;
@@ -208,15 +216,15 @@ void loop() {
           break;
         case 4:
           page = 14;
-          drawSubPage("Help", "Soon...");
+          drawSubPage("Help", "");
           break;
         case 5:
           page = 15;
-          drawSubPage("About Us", "Soon...");
+          drawSubPage("About Us", "");
           break;
         case 6:
           page = 16;
-          drawSubPage("Restart", "Soon...");
+          drawSubPage("Restart", "");
           break;
       }
       delay(140);
@@ -317,6 +325,14 @@ void loop() {
   lastArrowDownState = stateArrowDown;
   lastArrowUpState = stateArrowUp;
 
+    if (stateRemove == LOW && lastRemoveState == HIGH) {
+    if (page == 0 && selectedTimer >= 0 && selectedTimer < timers) {
+      deleteTimer(selectedTimer);
+      mainPage();
+    }
+    delay(150);
+  }
+
 if (stateStart == LOW && lastStartState == HIGH) { //pause-resume
     if (selectedTimer >= 0 && selectedTimer < timers) {
         TimerData &T = timerArr[selectedTimer];
@@ -394,6 +410,12 @@ lastStartState = stateStart;
     }
   } else if (page == 1) { // page handle
     mainPage();
+    for (int t = 0; t < timers; t++) {
+      timerArr[t].lastRunning   = !timerArr[t].running;
+      timerArr[t].lastTriggered = !timerArr[t].triggered;
+      timerArr[t].lastSelected  = false;
+      drawTimer(t);
+    }
     lastMenuField = -1;
   } else if (page == 2) {
     page = 1;
@@ -632,6 +654,28 @@ void drawTimer(int i) { //timer draw
   }
 }
 
+void deleteTimer(int index) {
+  if (index < 0 || index >= timers) return;
+
+  if (timerArr[index].running) {
+    timerArr[index].running = false;
+  }
+
+  for (int i = index; i < timers - 1; i++) {
+    timerArr[i] = timerArr[i + 1];
+  }
+
+  timers--;
+
+  if (timers == 0) {
+    selectedTimer = -1;
+  } else {
+    if (index >= timers) index = timers - 1;
+    selectedTimer = index;
+  }
+}
+
+
 void drawMenu() {
   const char* options[4] = {"Settings", "Help", "About Us", "Close [Esc]"};
   int yPositions[4] = {100, 160, 220, 280};
@@ -717,20 +761,28 @@ void drawSubPage(const char* title, const char* content) {
   if (strcmp(title, "Help") == 0) {
     tft.print(F(" QUICK START:\n\n"));
     tft.print(F(" ADD TIMER:\n\n  Press '+' (Max 3)\n\n\n"));
-    tft.print(F(" EDIT MODE:\n\n  Arrows→Select→OK\n\n  Set digits→ESC saves\n\n\n"));
-    tft.print(F(" RUN/PAUSE:\n\n  Select→START button\n\n\n"));
+    tft.print(F(" EDIT MODE:\n\n  Arrows->Select->OK\n\n  Set digits->ESC saves\n\n\n"));
+    tft.print(F(" RUN/PAUSE:\n\n  Select->START button\n\n\n"));
     tft.print(F(" RGB LIGHTS:\n\n  Green=Run\n\n  Blue=Menu\n\n  Red=Done\n\n\n"));
-    tft.print(F(" SUPPORT:\n\n  ProjectChronos.support@gmail.com"));
+    tft.print(F(" SUPPORT:\n\n  help.projectchronos@gmail.com"));
   } 
   else if (strcmp(title, "About Us") == 0) {
-    tft.print(F(" CHRONOS v1.09\n\n"));
+    tft.print(F(" CHRONOS v1.1\n\n"));
     tft.print(F(" By University Antonine\n\n\n"));
     tft.print(F(" TEAM (4):\n\n  Abdallah (Lead Software)\n  Roni (Software and Hardware)\n  Jawad (Lead Hardware)\n  Adam (Testing)\n\n\n"));
     tft.print(F(" FEATURES:\n\n  3 timers, RGB LEDs\n  Audio alerts, Stopwatch\n  Edit mode, and Menu\n\n\n"));
-    tft.print(F(" Last Update: 08/11/2025\n\n  -Optimization\n  -Fixed Some Minor Bugs\n  -Fixed Settings Design\n  -Added Settings Page\n  -Fixed Settings Functionality\n  Version: 1.09\n\n\n"));
+    tft.print(F(" Last Update: 08/11/2025\n\n  -Optimization\n  -Added Contact Us page content\n  -Fixed Remove Timers functionality\n  -Fixed some overlaying bugs\n  -Fixed Settings Functionality\n  Version: 1.1\n\n\n"));
     tft.print(F(" Thank you for using Project Chronos"));
   }
-  else if (strcmp(title, "Settings") == 0) {
+  else if (strcmp(title, "Contact Us") == 0) {
+    tft.print(F(" REPORT ISSUES:\n\n\n"));
+    tft.print(F("  -Timer bugs/errors\n\n"));
+    tft.print(F("  -Hardware problems\n\n"));
+    tft.print(F("  -Feature requests\n\n"));
+    tft.print(F("  -General questions\n\n\n"));
+    tft.print(F(" Email: help.projectchronos@gmail.com"));
+  }
+  else if (strcmp(title, "Restart") == 0) {
     tft.print(F("  Soon..."));
   }
   else {
