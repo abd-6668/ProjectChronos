@@ -13,8 +13,8 @@ Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 const int buttonEsc = A0;
 const int arrowUp = A1;
 const int arrowDown = A2;
-const int arrowRight = A3;
-const int arrowLeft = A4;
+const int arrowRight = A4;
+const int arrowLeft = A3;
 const int buttonAdd = A5;
 const int buttonOk = 2;
 const int buttonRemove = 3;
@@ -33,7 +33,6 @@ bool menuNeedsRedraw = false;
 int lightUp = 0;
 int settingsField = 0, lastSettingsField = -1;
 bool settingsNeedsRedraw = false;
-const char* settingsOptions[7] = {"Contact Us", "Light Mode", "History", "Current Time", "Help", "About Us", "Restart"};
 
 int lastButtonOkState = HIGH;
 int lastButtonAddState = HIGH;
@@ -104,7 +103,7 @@ void setup() {
 
   // intro
   textMiddle(12, 16, GOLD, "Project Chronos", ILI9341_WHITE, 2, 1500);
-  textMiddle(12, 16, ILI9341_BLACK, "Version 1.1", ILI9341_WHITE, 2, 700);
+  textMiddle(12, 16, ILI9341_BLACK, "Version 1.11", ILI9341_WHITE, 2, 700);
 
   // initialize timers data
   for (int i=0; i<maxTimers; ++i) {
@@ -182,7 +181,7 @@ void loop() {
   if (stateButtonOk == LOW && lastButtonOkState == HIGH) { //menu
     if (page == 1) { //menu selection
       selectedOption = menuField;
-       if (selectedOption == 0) {
+      if (selectedOption == 0) {
         page = 2;
         settingsField = 0;
         lastSettingsField = -1;
@@ -336,31 +335,36 @@ void loop() {
 if (stateStart == LOW && lastStartState == HIGH) { //pause-resume
     if (selectedTimer >= 0 && selectedTimer < timers) {
         TimerData &T = timerArr[selectedTimer];
-        if (T.remainingMillis > 0 && !T.triggered) {
-            T.running = !T.running;
-            T.lastUpdateMillis = millis();
+        T.running = !T.running;
+        T.lastUpdateMillis = millis();
+        if (T.remainingMillis == 0 && T.running && T.stopwatchElapsedMillis == 0) {
+            T.triggered = false;
         }
     }
     delay(120);
 }
+
 lastStartState = stateStart;
 
+  if (page == 0) {
   for (int i=0; i<timers; ++i) { //update timers
     TimerData &T = timerArr[i];
-    if (T.running && !T.triggered) {
+    if (T.running) {
       unsigned long elapsed = now - T.lastUpdateMillis;
       if (elapsed > 0) {
-        if (elapsed >= T.remainingMillis) { //finish of timer
-          T.remainingMillis = 0;
-          T.running = false;
-          T.triggered = true;
-          T.stopwatchElapsedMillis += elapsed;
-          tone(buzzerPin, 1200, 600);
-          digitalWrite(redPin, LOW);
-          digitalWrite(greenPin, HIGH);
-          digitalWrite(bluePin, HIGH);
+        if (T.remainingMillis > 0 && !T.triggered) {
+          if (elapsed >= T.remainingMillis) {
+            T.remainingMillis = 0;
+            T.running = false;
+            T.triggered = true;
+            tone(buzzerPin, 1200, 600);
+            digitalWrite(redPin, LOW);
+            digitalWrite(greenPin, HIGH);
+            digitalWrite(bluePin, HIGH);
+          } else {
+            T.remainingMillis -= elapsed;
+          }
         } else {
-          T.remainingMillis -= elapsed;
           T.stopwatchElapsedMillis += elapsed;
         }
         T.lastUpdateMillis = now;
@@ -368,40 +372,41 @@ lastStartState = stateStart;
     } else {
       T.lastUpdateMillis = now;
     }
-    if (!T.triggered) {
-
-    }
   }
+}
 
-  for (int i=0; i<timers; ++i) { //timers added UI
+  if (page == 0) { // timer UI
+  for (int i=0; i<timers; ++i) {
     drawTimer(i);
   }
 
-  if (timers > 0 && page == 0) { //selected timer indicator
+  if (timers > 0) { //selected timer indicator
     for (int i=0; i<timers; ++i) {
       int yBox = 50 + i * 85;
       if (i == selectedTimer) tft.drawRect(xTimer, yBox, widthTimer, heightTimer, GOLD);
       else tft.drawRect(xTimer, yBox, widthTimer, heightTimer, ILI9341_BLACK);
     }
   }
+}
 
     if (stateButtonEsc == LOW && lastButtonEscState == HIGH) {
   delay(200);
   
   if (page == 0) { // Main page
     if (selectedTimer >= 0 && selectedTimer < timers && timerArr[selectedTimer].editing) {
-      TimerData &T = timerArr[selectedTimer];
-      uint8_t h = T.digits[0]*10 + T.digits[1];
-      uint8_t m = T.digits[2]*10 + T.digits[3];
-      uint8_t s = T.digits[4]*10 + T.digits[5];
-      unsigned long totalSeconds = (unsigned long)h*3600UL + (unsigned long)m*60UL + (unsigned long)s;
-      T.remainingMillis = totalSeconds * 1000UL;
-      T.stopwatchElapsedMillis = 0;
-      T.editing = false;
-      T.triggered = false;
-      T.lastRemainingSec = 0xFFFFFFFFUL;
-      T.lastStopwatchSec = 0xFFFFFFFFUL;
-    } else { // Open main menu
+    TimerData &T = timerArr[selectedTimer];
+    uint8_t h = T.digits[0]*10 + T.digits[1];
+    uint8_t m = T.digits[2]*10 + T.digits[3];
+    uint8_t s = T.digits[4]*10 + T.digits[5];
+    unsigned long totalSeconds = (unsigned long)h*3600UL + (unsigned long)m*60UL + (unsigned long)s;
+    T.remainingMillis = totalSeconds * 1000UL;
+    T.stopwatchElapsedMillis = 0;
+    T.editing = false;
+    T.triggered = false;
+    T.running = false;
+    T.lastRemainingSec = 0xFFFFFFFFUL;
+    T.lastStopwatchSec = 0xFFFFFFFFUL;
+} else { // Open main menu
       page = 1;
       menuField = 0;
       lastMenuField = -1;
@@ -453,55 +458,33 @@ if (page == 1 && menuNeedsRedraw) {
   settingsNeedsRedraw = false;
 }
 
-  if (page == 0) { //stopwatch functionality
-    if (running) {
-      unsigned long elapsed = millis() - startTime;
-      unsigned long totalSeconds = elapsed / 1000UL;
-      unsigned int seconds = totalSeconds % 60;
-      unsigned int minutes = (totalSeconds / 60) % 60;
-      unsigned int hours = (totalSeconds / 3600) % 24;
-      if (totalSeconds != previosSecond) {
-        previosSecond = totalSeconds;
-        tft.fillRect(20, 70, 200, 20, ILI9341_WHITE);
-        tft.setCursor(20, 70);
-        tft.setTextSize(1);
-        tft.setTextColor(ILI9341_BLACK);
-        tft.print("Stopwatch: ");
-        if (hours < 10) tft.print('0');
-        tft.print(hours); tft.print(':');
-        if (minutes < 10) tft.print('0');
-        tft.print(minutes); tft.print(':');
-        if (seconds < 10) tft.print('0');
-        tft.print(seconds);
-        digitalWrite(greenPin, LOW);
-        digitalWrite(redPin, HIGH);
-        digitalWrite(bluePin, HIGH);
-      }
-    } else { //indicate finish of timer by rgb
-      if (lightUp < 3) {
-        digitalWrite(redPin, LOW);
-        digitalWrite(buzzerPin, HIGH);
-        delay(200);
-        digitalWrite(buzzerPin, LOW);
-        lightUp++;
-      }
-    }
+if (page == 1) { //rgb light functionality
+  digitalWrite(bluePin, LOW);
+  digitalWrite(redPin, HIGH);
+  digitalWrite(greenPin, HIGH);
+} else if (page == 0) {
+  bool anyTriggered = false;
+  bool anyRunning = false;
+  
+  for (int i = 0; i < timers; i++) {
+    if (timerArr[i].triggered) anyTriggered = true;
+    if (timerArr[i].running) anyRunning = true;
   }
-
-  if (running) { //rgb light function
+  
+  if (anyTriggered) {
+    digitalWrite(redPin, LOW);
+    digitalWrite(greenPin, HIGH);
+    digitalWrite(bluePin, HIGH);
+  } else if (anyRunning) {
     digitalWrite(redPin, HIGH);
     digitalWrite(greenPin, LOW);
     digitalWrite(bluePin, HIGH);
-  } else if (page == 1) {
-    // menu page
-    digitalWrite(redPin, HIGH);
-    digitalWrite(greenPin, HIGH);
-    digitalWrite(bluePin, LOW);
   } else {
     digitalWrite(redPin, LOW);
     digitalWrite(greenPin, HIGH);
     digitalWrite(bluePin, HIGH);
   }
+}
 
 //update 
   lastButtonOkState = stateButtonOk;
@@ -512,7 +495,6 @@ if (page == 1 && menuNeedsRedraw) {
   lastArrowLeftState = stateArrowLeft;
   lastRemoveState = stateRemove;
   lastStartState = stateStart;
-  delay(35);
 }
 
 void drawTimer(int i) { //timer draw
@@ -531,7 +513,7 @@ void drawTimer(int i) { //timer draw
 
   if (T.lastSelected != sel || T.lastEditing != T.editing) { //edit mode
     tft.fillRect(x, yBox, w, h, ILI9341_WHITE);
-    tft.drawRect(x, yBox, w, h, sel ? ILI9341_LIGHTGREY : ILI9341_BLACK);
+    tft.drawRect(x, yBox, w, h, sel ? GOLD : ILI9341_BLACK);
 
     tft.setTextSize(1);
     tft.setTextColor(ILI9341_BLACK);
@@ -554,8 +536,8 @@ void drawTimer(int i) { //timer draw
   if (T.editing) {//edit view
     bool needDigits = (T.lastEditDigit != T.editDigit);
 
-    char curDigits[9];
-    sprintf(curDigits, "%d%d:%d%d:%d%d", T.digits[0], T.digits[1], T.digits[2], T.digits[3], T.digits[4], T.digits[5]);
+    char curDigits[10];
+    sprintf(curDigits, "%01d%01d:%01d%01d:%01d%01d", T.digits[0], T.digits[1], T.digits[2], T.digits[3], T.digits[4], T.digits[5]);
 
     static char prevDigits[maxTimers][9] = {{0}};
     if (strcmp(prevDigits[i], curDigits) != 0) {
@@ -676,66 +658,60 @@ void deleteTimer(int index) {
 }
 
 
-void drawMenu() {
-  const char* options[4] = {"Settings", "Help", "About Us", "Close [Esc]"};
-  int yPositions[4] = {100, 160, 220, 280};
+void drawMenu() { //menu design
+  const char* options[4] = {"Settings", "Help", "About Us", "Close [ESC]"};
+  int yPositions[4] = {80, 150, 220, 290};
   
   if (lastMenuField == -1) {
     tft.fillScreen(ILI9341_WHITE);
-    tft.drawRoundRect(20, 10, 200, 300, 8, ILI9341_BLACK);
-    
+    tft.fillRect(0, 0, 240, 40, GOLD);
     tft.setTextWrap(false);
-    tft.setTextColor(GOLD);
-    tft.setTextSize(3);
-    tft.setCursor((240 - 72) / 2, 45);
+    tft.setTextColor(ILI9341_WHITE);
+    tft.setTextSize(2);
+    tft.setCursor(96, 10);
     tft.print("Menu");
     
+    tft.drawLine(0, 40, 240, 40, GOLD);
 
     for (int i = 0; i < 4; i++) {
-      int rectY = yPositions[i] - 12;
+      int y = yPositions[i];
+      tft.fillRect(20, y - 10, 200, 36, ILI9341_WHITE);
+      if (i > 0) {
+        tft.drawFastHLine(25, y - 12, 190, ILI9341_LIGHTGREY);
+      }
+
       if (i == menuField) {
-        if (rectY >= 10 && rectY + 42 <= 310) {
-          tft.fillRoundRect(30, rectY, 180, 42, 6, GOLD);
-        }
-        tft.setTextColor(ILI9341_WHITE);
+        tft.setTextSize(2);
+        tft.setTextColor(GOLD);
       } else {
-        if (rectY >= 10 && rectY + 42 <= 310) {
-          tft.drawRoundRect(30, rectY, 180, 42, 6, ILI9341_BLACK);
-        }
+        tft.setTextSize(2);
         tft.setTextColor(ILI9341_BLACK);
       }
-      tft.setTextSize(2);
-      int tw = strlen(options[i]) * 11;
+      int tw = strlen(options[i]) * 12;
       int x = (240 - tw) / 2;
-      tft.setCursor(x, yPositions[i]);
+      tft.setCursor(x, y);
       tft.print(options[i]);
     }
   }
   else if (menuField != lastMenuField) {
-    int old = lastMenuField;
-    int oldRectY = yPositions[old] - 12;
-    if (oldRectY >= 10 && oldRectY + 42 <= 310) {
-      tft.fillRect(30, oldRectY, 180, 42, ILI9341_WHITE);
-      tft.drawRoundRect(30, oldRectY, 180, 42, 6, ILI9341_BLACK);
-    }
-    
+    int oldY = yPositions[lastMenuField];
+    tft.fillRect(20, oldY - 12, 200, 38, ILI9341_WHITE);
+    if (lastMenuField > 0) tft.drawFastHLine(25, oldY - 12, 190, ILI9341_LIGHTGREY);
     tft.setTextSize(2);
     tft.setTextColor(ILI9341_BLACK);
-    int x = (240 - strlen(options[old]) * 11) / 2;
-    tft.setCursor(x, yPositions[old]);
-    tft.print(options[old]);
-    
-    int current = menuField;
-    int currentRectY = yPositions[current] - 12;
-    if (currentRectY >= 10 && currentRectY + 42 <= 310) {
-      tft.fillRoundRect(30, currentRectY, 180, 42, 6, GOLD);
-    }
-    
+    int tw = strlen(options[lastMenuField]) * 12;
+    int x = (240 - tw) / 2;
+    tft.setCursor(x, oldY);
+    tft.print(options[lastMenuField]);
+    int newY = yPositions[menuField];
+    tft.fillRect(20, newY - 12, 200, 38, ILI9341_WHITE);
+    if (menuField > 0) tft.drawFastHLine(25, newY - 12, 190, ILI9341_LIGHTGREY);
     tft.setTextSize(2);
-    tft.setTextColor(ILI9341_WHITE);
-    x = (240 - strlen(options[current]) * 11) / 2;
-    tft.setCursor(x, yPositions[current]);
-    tft.print(options[current]);
+    tft.setTextColor(GOLD);
+    tw = strlen(options[menuField]) * 12;
+    x = (240 - tw) / 2;
+    tft.setCursor(x, newY);
+    tft.print(options[menuField]);
   }
   
   lastMenuField = menuField;
@@ -767,11 +743,11 @@ void drawSubPage(const char* title, const char* content) {
     tft.print(F(" SUPPORT:\n\n  help.projectchronos@gmail.com"));
   } 
   else if (strcmp(title, "About Us") == 0) {
-    tft.print(F(" CHRONOS v1.1\n\n"));
+    tft.print(F(" CHRONOS V1.11\n\n"));
     tft.print(F(" By University Antonine\n\n\n"));
     tft.print(F(" TEAM (4):\n\n  Abdallah (Lead Software)\n  Roni (Software and Hardware)\n  Jawad (Lead Hardware)\n  Adam (Testing)\n\n\n"));
     tft.print(F(" FEATURES:\n\n  3 timers, RGB LEDs\n  Audio alerts, Stopwatch\n  Edit mode, and Menu\n\n\n"));
-    tft.print(F(" Last Update: 08/11/2025\n\n  -Optimization\n  -Added Contact Us page content\n  -Fixed Remove Timers functionality\n  -Fixed some overlaying bugs\n  -Fixed Settings Functionality\n  Version: 1.1\n\n\n"));
+    tft.print(F(" Last Update: 10/11/2025\n\n  -Optimization (Memory)\n  -Fixed Major bugs in Stopwatch/Timer\n  -Redo of Menu Design\n  -Fixed some overlaying bugs\n  -Fixed some Overlaying Bugs\n  Version: 1.11\n\n\n"));
     tft.print(F(" Thank you for using Project Chronos"));
   }
   else if (strcmp(title, "Contact Us") == 0) {
@@ -826,7 +802,7 @@ void drawSettingsMenu() {
     tft.setTextSize(2);
     tft.setCursor((240 - 110) / 2, 10);
     tft.print("Settings");
-
+    
     for (int i = 0; i < 7; i++) {
       int y = 50 + i * 34;
       
@@ -931,7 +907,7 @@ void mainPage() { //main page
       tft.setCursor(xTimer + 48, yTimer + 6);
       tft.print(i + 1);
       tft.drawFastHLine(xTimer + 4, yTimer + 20, widthTimer - 8, ILI9341_BLACK);
-      tft.setTextSize(1.75);
+      tft.setTextSize(1);
       tft.setCursor(xTimer + 8, yTimer + 32);
       tft.print("Timer: 00:00:00");
       tft.setCursor(xTimer + 8, yTimer + 52);
