@@ -33,6 +33,11 @@ bool menuNeedsRedraw = false;
 int lightUp = 0;
 int settingsField = 0, lastSettingsField = -1;
 bool settingsNeedsRedraw = false;
+unsigned long lastTriggerTime = 0;
+const unsigned long TRIGGER_RED_DURATION = 600;
+
+bool inverted = 0;
+bool gold = 1;
 
 int lastButtonOkState = HIGH;
 int lastButtonAddState = HIGH;
@@ -45,7 +50,6 @@ int lastRemoveState = HIGH;
 int lastStartState = HIGH;
 
 int charWidth = 6, charHeight = 8;
-//timer structure
 struct TimerData {
   uint8_t digits[6];
   unsigned long remainingMillis;
@@ -100,10 +104,11 @@ void setup() {
 
   tft.begin();
   tft.setTextWrap(false);
+  tft.invertDisplay(inverted);
 
   // intro
   textMiddle(12, 16, GOLD, "Project Chronos", ILI9341_WHITE, 2, 1500);
-  textMiddle(12, 16, ILI9341_BLACK, "Version 1.11", ILI9341_WHITE, 2, 700);
+  textMiddle(12, 16, ILI9341_BLACK, "Version 1.12", ILI9341_WHITE, 2, 700);
 
   // initialize timers data
   for (int i=0; i<maxTimers; ++i) {
@@ -142,37 +147,38 @@ void loop() {
   unsigned long now = millis();
 
 
-  if (stateButtonAdd == LOW && lastButtonAddState == HIGH) { //timer functionallity
+    if (stateButtonAdd == LOW && lastButtonAddState == HIGH) { //timer functionallity
     if (timers < maxTimers) {
-      if (timers == 0) {
-        tft.fillRect(0, 100, 240, 220, ILI9341_WHITE);
-      }
       int idx = timers++;
-      for (int d=0; d<6; ++d) timerArr[idx].digits[d] = 0;
+      for (int d = 0; d < 6; ++d) timerArr[idx].digits[d] = 0;
       timerArr[idx].remainingMillis = 0;
       timerArr[idx].running = false;
       timerArr[idx].editing = false;
       timerArr[idx].editDigit = 0;
-      timerArr[idx].lastUpdateMillis = now;
+      timerArr[idx].lastUpdateMillis = millis();
       timerArr[idx].stopwatchElapsedMillis = 0;
       timerArr[idx].triggered = false;
-
       timerArr[idx].lastSelected = false;
-      timerArr[idx].lastEditing  = false;
-      timerArr[idx].lastRunning  = false;
-      timerArr[idx].lastTriggered= false;
+      timerArr[idx].lastEditing = false;
+      timerArr[idx].lastRunning = false;
+      timerArr[idx].lastTriggered = false;
       timerArr[idx].lastRemainingSec = 0xFFFFFFFFUL;
       timerArr[idx].lastStopwatchSec = 0xFFFFFFFFUL;
       timerArr[idx].lastEditDigit = -1;
 
       if (selectedTimer < 0) selectedTimer = 0;
-        mainPage();
-        for (int t = 0; t < timers; t++) {
-            timerArr[t].lastRunning = !timerArr[t].running;
-            timerArr[t].lastTriggered = !timerArr[t].triggered;
-            timerArr[t].lastSelected = false;
-            drawTimer(t);
-        }
+      
+      if (timers == 1) {
+        tft.fillRect(0, 45, 240, 275, ILI9341_WHITE);
+      }
+
+      if (selectedTimer >= 0 && timerArr[selectedTimer].editing) {
+        delay(200);
+        lastButtonAddState = stateButtonAdd;
+        return;
+    }
+
+      drawTimer(idx);
     }
     delay(200);
   }
@@ -207,11 +213,11 @@ void loop() {
           break;
         case 2:
           page = 12;
-          drawSubPage("History", "Soon...");
+          drawSubPage("History", "  Soon...");
           break;
         case 3:
           page = 13;
-          drawSubPage("Current Time", "Soon...");
+          drawSubPage("Current Time", "  Soon...");
           break;
         case 4:
           page = 14;
@@ -227,6 +233,15 @@ void loop() {
           break;
       }
       delay(140);
+    } else if (page == 11) {
+      if (gold == 1) {
+        inverted = 1;
+        gold = 0;
+      } else {
+        inverted = 0;
+        gold = 1;
+      }
+      tft.invertDisplay(inverted);
     } else if (page == 0) {
       if (selectedTimer >= 0 && selectedTimer < timers) { //enter edit mode for timer
         timerArr[selectedTimer].editing = true;
@@ -245,33 +260,47 @@ void loop() {
     delay(140);
   }
 
-  if (stateArrowLeft == LOW && lastArrowLeftState == HIGH) { //timer handle 
-    if (page == 0 && selectedTimer >= 0 && selectedTimer < timers && timerArr[selectedTimer].editing) {
-      timerArr[selectedTimer].editDigit--;
-      if (timerArr[selectedTimer].editDigit < 0) timerArr[selectedTimer].editDigit = 5;
-    } else if (page == 0) {
-      if (timers > 0) {
-        selectedTimer--;
-        if (selectedTimer < 0) selectedTimer = timers - 1;
-      }
-    } else if (page == 1) {
+if (stateArrowLeft == LOW && lastArrowLeftState == HIGH) { 
+  if (page == 0 && selectedTimer >= 0 && selectedTimer < timers && timerArr[selectedTimer].editing) {
+    timerArr[selectedTimer].editDigit--;
+    if (timerArr[selectedTimer].editDigit < 0) timerArr[selectedTimer].editDigit = 5;
+  } else if (page == 0 && timers > 0) {
+      int oldSelected = selectedTimer;
+      selectedTimer--;
+      if (selectedTimer < 0) selectedTimer = timers - 1;
 
-    }
-    delay(100);
-  }
-
-  if (stateArrowRight == LOW && lastArrowRightState == HIGH) {
-    if (page == 0 && selectedTimer >= 0 && selectedTimer < timers && timerArr[selectedTimer].editing) {
-      timerArr[selectedTimer].editDigit++;
-      if (timerArr[selectedTimer].editDigit > 5) timerArr[selectedTimer].editDigit = 0;
-    } else if (page == 0) {
-      if (timers > 0) {
-        selectedTimer++;
-        if (selectedTimer >= timers) selectedTimer = 0;
+      if (oldSelected >= 0) {
+        timerArr[oldSelected].lastSelected = false;
+        drawTimer(oldSelected);
       }
-    }
-    delay(100);
+      if (selectedTimer >= 0) {
+        timerArr[selectedTimer].lastSelected = false;
+        drawTimer(selectedTimer);
+      }
   }
+  delay(100);
+}
+
+if (stateArrowRight == LOW && lastArrowRightState == HIGH) {
+  if (page == 0 && selectedTimer >= 0 && selectedTimer < timers && timerArr[selectedTimer].editing) {
+    timerArr[selectedTimer].editDigit++;
+    if (timerArr[selectedTimer].editDigit > 5) timerArr[selectedTimer].editDigit = 0;
+  } else if (page == 0 && timers > 0) {
+      int oldSelected = selectedTimer;
+      selectedTimer++;
+      if (selectedTimer >= timers) selectedTimer = 0;
+
+      if (oldSelected >= 0) {
+        timerArr[oldSelected].lastSelected = false;
+        drawTimer(oldSelected);
+      }
+      if (selectedTimer >= 0) {
+        timerArr[selectedTimer].lastSelected = false;
+        drawTimer(selectedTimer);
+      }
+  }
+  delay(100);
+}
   lastArrowLeftState = stateArrowLeft;
   lastArrowRightState = stateArrowRight;
 
@@ -282,10 +311,18 @@ void loop() {
       if (di == 2 || di == 4) maxv = 5;
       timerArr[selectedTimer].digits[di]++;
       if (timerArr[selectedTimer].digits[di] > maxv) timerArr[selectedTimer].digits[di] = 0;
-    } else if (page == 0) {
-      if (timers > 0) {
-        selectedTimer--;
-        if (selectedTimer < 0) selectedTimer = timers - 1;
+    } else if (page == 0 && timers > 0) {
+      int oldSelected = selectedTimer;
+      selectedTimer--;
+      if (selectedTimer < 0) selectedTimer = timers - 1;
+
+      if (oldSelected >= 0) {
+        timerArr[oldSelected].lastSelected = false;
+        drawTimer(oldSelected);
+      }
+      if (selectedTimer >= 0) {
+        timerArr[selectedTimer].lastSelected = false;
+        drawTimer(selectedTimer);
       }
     } else if (page == 1) {
       menuField--;
@@ -305,10 +342,18 @@ void loop() {
       if (di == 2 || di == 4) maxv = 5;
       if (timerArr[selectedTimer].digits[di] == 0) timerArr[selectedTimer].digits[di] = maxv;
       else timerArr[selectedTimer].digits[di]--;
-    } else if (page == 0) {
-      if (timers > 0) {
-        selectedTimer++;
-        if (selectedTimer >= timers) selectedTimer = 0;
+    } else if (page == 0 && timers > 0) {
+      int oldSelected = selectedTimer;
+      selectedTimer++;
+      if (selectedTimer >= timers) selectedTimer = 0;
+
+      if (oldSelected >= 0) {
+        timerArr[oldSelected].lastSelected = false;
+        drawTimer(oldSelected);
+      }
+      if (selectedTimer >= 0) {
+        timerArr[selectedTimer].lastSelected = false;
+        drawTimer(selectedTimer);
       }
     } else if (page == 1) {
       menuField++;
@@ -326,24 +371,30 @@ void loop() {
 
     if (stateRemove == LOW && lastRemoveState == HIGH) {
     if (page == 0 && selectedTimer >= 0 && selectedTimer < timers) {
-      deleteTimer(selectedTimer);
-      mainPage();
+        if (timerArr[selectedTimer].editing) {
+            delay(150);
+            lastRemoveState = stateRemove;
+            return;
+        }
+        deleteTimer(selectedTimer);
     }
     delay(150);
-  }
+}
+  lastRemoveState = stateRemove;
 
-if (stateStart == LOW && lastStartState == HIGH) { //pause-resume
+if (stateStart == LOW && lastStartState == HIGH) { //start-pause-resume
     if (selectedTimer >= 0 && selectedTimer < timers) {
         TimerData &T = timerArr[selectedTimer];
-        T.running = !T.running;
-        T.lastUpdateMillis = millis();
-        if (T.remainingMillis == 0 && T.running && T.stopwatchElapsedMillis == 0) {
-            T.triggered = false;
+        if (!T.editing) {
+            T.running = !T.running;
+            T.lastUpdateMillis = millis();
+            if (T.remainingMillis == 0 && T.running && T.stopwatchElapsedMillis == 0) {
+                T.triggered = false;
+            }
         }
     }
     delay(120);
 }
-
 lastStartState = stateStart;
 
   if (page == 0) {
@@ -357,10 +408,8 @@ lastStartState = stateStart;
             T.remainingMillis = 0;
             T.running = false;
             T.triggered = true;
-            tone(buzzerPin, 1200, 600);
-            digitalWrite(redPin, LOW);
-            digitalWrite(greenPin, HIGH);
-            digitalWrite(bluePin, HIGH);
+            tone(buzzerPin, 1200, TRIGGER_RED_DURATION);
+            lastTriggerTime = millis();
           } else {
             T.remainingMillis -= elapsed;
           }
@@ -449,7 +498,6 @@ lastStartState = stateStart;
     menuNeedsRedraw = false;
   }
 
-  // Redraw menus when needed
 if (page == 1 && menuNeedsRedraw) {
   drawMenu();
   menuNeedsRedraw = false;
@@ -458,36 +506,40 @@ if (page == 1 && menuNeedsRedraw) {
   settingsNeedsRedraw = false;
 }
 
-if (page == 1) { //rgb light functionality
-  digitalWrite(bluePin, LOW);
-  digitalWrite(redPin, HIGH);
-  digitalWrite(greenPin, HIGH);
-} else if (page == 0) {
-  bool anyTriggered = false;
-  bool anyRunning = false;
-  
-  for (int i = 0; i < timers; i++) {
-    if (timerArr[i].triggered) anyTriggered = true;
-    if (timerArr[i].running) anyRunning = true;
-  }
-  
-  if (anyTriggered) {
-    digitalWrite(redPin, LOW);
-    digitalWrite(greenPin, HIGH);
-    digitalWrite(bluePin, HIGH);
-  } else if (anyRunning) {
+if (page == 0) { //rgb light functionality
+    bool anyTriggered = false;
+    bool anyRunning = false;
+    
+    for (int i = 0; i < timers; i++) {
+        if (timerArr[i].running) anyRunning = true;
+        if (timerArr[i].triggered) anyTriggered = true;
+    }
+    bool recentTrigger = (millis() - lastTriggerTime < TRIGGER_RED_DURATION);
+    
+    if (recentTrigger) {
+        digitalWrite(redPin, LOW);
+        digitalWrite(greenPin, HIGH);
+        digitalWrite(bluePin, HIGH);
+    } else if (anyRunning) {
+        digitalWrite(redPin, HIGH);
+        digitalWrite(greenPin, LOW);
+        digitalWrite(bluePin, HIGH);
+    } else if (anyTriggered) {
+        digitalWrite(redPin, LOW);
+        digitalWrite(greenPin, HIGH);
+        digitalWrite(bluePin, HIGH);
+    } else {
+        digitalWrite(redPin, HIGH);
+        digitalWrite(greenPin, HIGH);
+        digitalWrite(bluePin, LOW);
+    }
+} else if (page == 1) {
+    digitalWrite(bluePin, LOW);
     digitalWrite(redPin, HIGH);
-    digitalWrite(greenPin, LOW);
-    digitalWrite(bluePin, HIGH);
-  } else {
-    digitalWrite(redPin, LOW);
     digitalWrite(greenPin, HIGH);
-    digitalWrite(bluePin, HIGH);
-  }
 }
 
-//update 
-  lastButtonOkState = stateButtonOk;
+  lastButtonOkState = stateButtonOk; //update buttons
   lastButtonAddState = stateButtonAdd;
   lastArrowUpState = stateArrowUp;
   lastArrowDownState = stateArrowDown;
@@ -511,10 +563,14 @@ void drawTimer(int i) { //timer draw
   unsigned long swSec  = T.stopwatchElapsedMillis / 1000UL;
   bool sel = (i == selectedTimer);
 
-  if (T.lastSelected != sel || T.lastEditing != T.editing) { //edit mode
-    tft.fillRect(x, yBox, w, h, ILI9341_WHITE);
-    tft.drawRect(x, yBox, w, h, sel ? GOLD : ILI9341_BLACK);
+  bool isFirstDraw = (T.lastRemainingSec == 0xFFFFFFFFUL && T.lastStopwatchSec == 0xFFFFFFFFUL);
 
+  if (T.lastSelected != sel) {
+    tft.drawRect(x, yBox, w, h, sel ? GOLD : ILI9341_BLACK);
+    T.lastSelected = sel;
+  }
+
+  if (isFirstDraw) {
     tft.setTextSize(1);
     tft.setTextColor(ILI9341_BLACK);
     tft.setCursor(x + 8, yBox + 6);
@@ -522,37 +578,55 @@ void drawTimer(int i) { //timer draw
     tft.setCursor(x + 48, yBox + 6);
     tft.print(i + 1);
     tft.drawFastHLine(x + 4, yBox + 20, w - 8, ILI9341_BLACK);
+  }
+
+  if (T.lastEditing != T.editing) {
+    tft.fillRect(x + 6, yBox + 26, w - 12, h - 30, ILI9341_WHITE);
+    
+    tft.fillRect(x + 148, yBox + 2, 60, 14, ILI9341_WHITE);
+    tft.setCursor(x + 150, yBox + 6);
+    tft.setTextSize(1);
+    tft.setTextColor(ILI9341_BLACK); 
+    tft.print(T.editing ? "PAUSED" : "PAUSED");
 
     T.lastRemainingSec = 0xFFFFFFFFUL;
     T.lastStopwatchSec = 0xFFFFFFFFUL;
-    T.lastRunning = !T.running;
-    T.lastTriggered = !T.triggered;
     T.lastEditDigit = -99;
-
-    T.lastSelected = sel;
     T.lastEditing = T.editing;
   }
 
-  if (T.editing) {//edit view
-    bool needDigits = (T.lastEditDigit != T.editDigit);
+  if (!isFirstDraw && (T.lastRunning != T.running || T.lastTriggered != T.triggered)) {
+    tft.fillRect(x + 148, yBox + 2, 60, 14, ILI9341_WHITE);
+    tft.setCursor(x + 150, yBox + 6);
+    tft.setTextSize(1);
+    if (T.running) {
+      tft.setTextColor(ILI9341_GREEN); tft.print("RUN");
+    } else {
+      if (T.triggered) { tft.setTextColor(ILI9341_RED); tft.print("DONE"); }
+      else              { tft.setTextColor(ILI9341_BLACK); tft.print("PAUSED"); }
+    }
+    T.lastRunning = T.running;
+    T.lastTriggered = T.triggered;
+  }
 
+  if (T.editing) {
     char curDigits[10];
     sprintf(curDigits, "%01d%01d:%01d%01d:%01d%01d", T.digits[0], T.digits[1], T.digits[2], T.digits[3], T.digits[4], T.digits[5]);
 
     static char prevDigits[maxTimers][9] = {{0}};
-    if (strcmp(prevDigits[i], curDigits) != 0) {
-      needDigits = true;
-      strncpy(prevDigits[i], curDigits, sizeof(prevDigits[i])-1);
-      prevDigits[i][sizeof(prevDigits[i])-1] = 0;
-    }
+    bool digitsChanged = (T.lastEditDigit != T.editDigit) || (strcmp(prevDigits[i], curDigits) != 0);
 
-    if (needDigits) {
+    if (digitsChanged) {
+      strncpy(prevDigits[i], curDigits, sizeof(prevDigits[i]) - 1);
+      prevDigits[i][sizeof(prevDigits[i]) - 1] = 0;
+      
       tft.fillRect(x + 6, yBox + 26, w - 12, 24, ILI9341_WHITE);
+      
       int baseX = x + 8;
       int baseY = yBox + 32;
       tft.setTextSize(1);
-      const int step = 12;
       int cx = baseX;
+      const int step = 12;
 
       auto printDigit = [&](int dIndex, char ch) {
         tft.setCursor(cx, baseY);
@@ -573,7 +647,7 @@ void drawTimer(int i) { //timer draw
       T.lastEditDigit = T.editDigit;
     }
 
-    if (swSec != T.lastStopwatchSec || T.lastEditing != true) { //stopwatch
+    if (swSec != T.lastStopwatchSec) {
       tft.fillRect(x + 6, yBox + 48, w - 12, 16, ILI9341_WHITE);
       unsigned int sw_s = swSec % 60;
       unsigned int sw_m = (swSec / 60) % 60;
@@ -587,7 +661,6 @@ void drawTimer(int i) { //timer draw
       tft.print(sbuf);
       T.lastStopwatchSec = swSec;
     }
-
     return;
   }
 
@@ -620,40 +693,63 @@ void drawTimer(int i) { //timer draw
     tft.print(sbuf);
     T.lastStopwatchSec = swSec;
   }
-
-  if (T.lastRunning != T.running || T.lastTriggered != T.triggered) {
-    tft.fillRect(x + 148, yBox + 2, 60, 14, ILI9341_WHITE);
-    tft.setCursor(x + 150, yBox + 6);
-    tft.setTextSize(1);
-    if (T.running) {
-      tft.setTextColor(ILI9341_GREEN); tft.print("RUN");
-    } else {
-      if (T.triggered) { tft.setTextColor(ILI9341_RED); tft.print("DONE"); }
-      else              { tft.setTextColor(ILI9341_BLACK); tft.print("PAUSED"); }
-    }
-    T.lastRunning = T.running;
-    T.lastTriggered = T.triggered;
-  }
 }
 
 void deleteTimer(int index) {
   if (index < 0 || index >= timers) return;
-
   if (timerArr[index].running) {
     timerArr[index].running = false;
   }
 
-  for (int i = index; i < timers - 1; i++) {
-    timerArr[i] = timerArr[i + 1];
+  int yDeleted = 50 + index * 85;
+  tft.fillRect(xTimer, yDeleted, widthTimer, heightTimer, ILI9341_WHITE);
+
+  if (timers == 1) {
+    timers = 0;
+    selectedTimer = -1;
+    tft.fillRect(0, 45, 240, 275, ILI9341_WHITE);
+
+    tft.setTextSize(1);
+    tft.setTextColor(ILI9341_BLACK);
+    const char* line1 = "No timers to be displayed,";
+    const char* line2 = "please add a timer by pressing 'Add'";
+    int line1Width = strlen(line1) * 6;
+    int line2Width = strlen(line2) * 6;
+    int x1 = (240 - line1Width) / 2;
+    int x2 = (240 - line2Width) / 2;
+    int y = (320 - (8 * 3)) / 2;
+    tft.setCursor(x1, y);
+    tft.print(line1);
+    tft.setCursor(x2, y + 8 * 2);
+    tft.print(line2);
+    return;
   }
 
-  timers--;
+  for (int i = index; i < timers - 1; i++) {
+    timerArr[i] = timerArr[i + 1];
+    timerArr[i].lastSelected = false;
+    timerArr[i].lastEditing = false;
+    timerArr[i].lastRunning = false;
+    timerArr[i].lastTriggered = false;
+    timerArr[i].lastRemainingSec = 0xFFFFFFFFUL;
+    timerArr[i].lastStopwatchSec = 0xFFFFFFFFUL;
+    timerArr[i].lastEditDigit = -99;
+    drawTimer(i);
+  }
 
-  if (timers == 0) {
-    selectedTimer = -1;
-  } else {
-    if (index >= timers) index = timers - 1;
-    selectedTimer = index;
+  int lastTimerY = 50 + (timers - 1) * 85;
+  tft.fillRect(xTimer, lastTimerY, widthTimer, heightTimer, ILI9341_WHITE);
+
+  timers--;
+  if (index >= timers) index = timers - 1;
+  selectedTimer = index;
+  
+  for (int t = 0; t < timers; t++) {
+    bool shouldBeSelected = (t == selectedTimer);
+    if (timerArr[t].lastSelected != shouldBeSelected) {
+      timerArr[t].lastSelected = false;
+      drawTimer(t);
+    }
   }
 }
 
@@ -743,11 +839,11 @@ void drawSubPage(const char* title, const char* content) {
     tft.print(F(" SUPPORT:\n\n  help.projectchronos@gmail.com"));
   } 
   else if (strcmp(title, "About Us") == 0) {
-    tft.print(F(" CHRONOS V1.11\n\n"));
+    tft.print(F(" CHRONOS V1.12\n\n"));
     tft.print(F(" By University Antonine\n\n\n"));
     tft.print(F(" TEAM (4):\n\n  Abdallah (Lead Software)\n  Roni (Software and Hardware)\n  Jawad (Lead Hardware)\n  Adam (Testing)\n\n\n"));
     tft.print(F(" FEATURES:\n\n  3 timers, RGB LEDs\n  Audio alerts, Stopwatch\n  Edit mode, and Menu\n\n\n"));
-    tft.print(F(" Last Update: 10/11/2025\n\n  -Optimization (Memory)\n  -Fixed Major bugs in Stopwatch/Timer\n  -Redo of Menu Design\n  -Fixed some overlaying bugs\n  -Fixed some Overlaying Bugs\n  Version: 1.11\n\n\n"));
+    tft.print(F(" Last Update: 11/11/2025\n\n  -Optimization (Memory)\n  -Fixed Flickering of Timers\n  -Redo of Menu Design\n  -Fixed some minor bugs\n  -Added Light Mode\n  Version: 1.12\n\n\n"));
     tft.print(F(" Thank you for using Project Chronos"));
   }
   else if (strcmp(title, "Contact Us") == 0) {
@@ -760,6 +856,13 @@ void drawSubPage(const char* title, const char* content) {
   }
   else if (strcmp(title, "Restart") == 0) {
     tft.print(F("  Soon..."));
+  }
+  else if (strcmp(title, "Light Mode") == 0) {
+    tft.print(F(" Light Mode Change: \n\n"));
+    tft.print(F(" Press OK (1-2) to: \n\n\n"));
+    tft.print(F("  1. Change color to midnight blue.\n\n"));
+    tft.print(F("  2. Change color to gold.\n\n"));
+    tft.print(F("  Press ESC to leave."));
   }
   else {
     tft.print(content);
@@ -868,15 +971,16 @@ void mainPage() { //main page
   page = 0;
   tft.fillScreen(ILI9341_WHITE);
 
-  tft.setTextColor(GOLD);
+  tft.fillRect(0,0,320,40,GOLD);
+  tft.setTextColor(ILI9341_WHITE);
   tft.setTextSize(2);
-  tft.setCursor(5, 10);
+  tft.setCursor(10, 10);
   tft.print("Project Chronos");
 
   tft.setTextColor(ILI9341_BLACK);
   tft.setTextSize(1);
   tft.drawRect(200, 6, 25, 25, ILI9341_BLACK);
-  tft.setCursor(204, 12);
+  tft.setCursor(204, 14);
   tft.print("ESC");
   tft.drawFastHLine(0, 40, 240, ILI9341_BLACK);
 
@@ -884,7 +988,7 @@ void mainPage() { //main page
     tft.setTextSize(1);
     tft.setTextColor(ILI9341_BLACK);
     const char* line1 = "No timers to be displayed,";
-    const char* line2 = "please add a timer by pressing '+'";
+    const char* line2 = "please add a timer by pressing 'Add'";
     charWidth = 6;
     charHeight = 8;
     int line1Width = strlen(line1) * charWidth;
