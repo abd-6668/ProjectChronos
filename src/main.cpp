@@ -6,6 +6,7 @@
 #define TFT_CS   10
 #define TFT_DC   9
 #define TFT_RST  8
+
 #define GOLD 0xFEA0
 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
@@ -78,6 +79,7 @@ void drawSubPage(const char* title, const char* content);
 void textMiddle(int Width, int Height, int Color, const char* string, int screenColor, int size, int delayer);
 void drawSettingsMenu();
 void deleteTimer(int index);
+void (* resetFunc) (void) = 0; //restart function
 
 void setup() {
   Serial.begin(115200);
@@ -148,7 +150,7 @@ void loop() {
 
 
     if (stateButtonAdd == LOW && lastButtonAddState == HIGH) { //timer functionallity
-    if (timers < maxTimers) {
+    if (page == 0 && timers < maxTimers) {
       int idx = timers++;
       for (int d = 0; d < 6; ++d) timerArr[idx].digits[d] = 0;
       timerArr[idx].remainingMillis = 0;
@@ -242,6 +244,8 @@ void loop() {
         gold = 1;
       }
       tft.invertDisplay(inverted);
+    } else if (page == 16) {
+      resetFunc();
     } else if (page == 0) {
       if (selectedTimer >= 0 && selectedTimer < timers) { //enter edit mode for timer
         timerArr[selectedTimer].editing = true;
@@ -468,6 +472,8 @@ lastStartState = stateStart;
       timerArr[t].lastRunning   = !timerArr[t].running;
       timerArr[t].lastTriggered = !timerArr[t].triggered;
       timerArr[t].lastSelected  = false;
+      timerArr[t].lastRemainingSec = 0xFFFFFFFFUL;
+      timerArr[t].lastStopwatchSec = 0xFFFFFFFFUL;
       drawTimer(t);
     }
     lastMenuField = -1;
@@ -853,11 +859,7 @@ void drawSubPage(const char* title, const char* content) {
     tft.print(F("  -Feature requests\n\n"));
     tft.print(F("  -General questions\n\n\n"));
     tft.print(F(" Email: help.projectchronos@gmail.com"));
-  }
-  else if (strcmp(title, "Restart") == 0) {
-    tft.print(F("  Soon..."));
-  }
-  else if (strcmp(title, "Light Mode") == 0) {
+  } else if (strcmp(title, "Light Mode") == 0) {
     tft.print(F(" Light Mode Change: \n\n"));
     tft.print(F(" Press OK (1-2) to: \n\n\n"));
     tft.print(F("  1. Change color to midnight blue.\n\n"));
@@ -865,6 +867,15 @@ void drawSubPage(const char* title, const char* content) {
     tft.print(F("  Press ESC to leave."));
   }
   else {
+    tft.print(content);
+  }
+  
+  tft.setTextSize(2);
+  if (strcmp(title, "Restart") == 0) {
+    tft.print(F(" Restart: \n\n\n"));
+    tft.print(F(" Press OK to restart\n\n"));
+    tft.print(F(" Press ESC to cancel"));
+  } else {
     tft.print(content);
   }
 
