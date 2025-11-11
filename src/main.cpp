@@ -79,7 +79,7 @@ void drawSubPage(const char* title, const char* content);
 void textMiddle(int Width, int Height, int Color, const char* string, int screenColor, int size, int delayer);
 void drawSettingsMenu();
 void deleteTimer(int index);
-void (* resetFunc) (void) = 0; //restart function
+void (* resetFunc) (void) = 0;
 
 void setup() {
   Serial.begin(115200);
