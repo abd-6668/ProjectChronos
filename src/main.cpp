@@ -3,15 +3,12 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 
-#define TFT_CS   10
-#define TFT_DC   9
-#define TFT_RST  8
-
-#define GOLD 0xFEA0
-
+const int GOLD = 0xFEA0; //gold color
+//pins for lcd
+const int TFT_CS = 10, TFT_DC = 9, TFT_RST = 8;
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
-
-const int buttonEsc = A0;
+//pins for buttons
+const int buttonEsc = A0; //pins for butt
 const int arrowUp = A1;
 const int arrowDown = A2;
 const int arrowRight = A4;
@@ -20,14 +17,12 @@ const int buttonAdd = A5;
 const int buttonOk = 2;
 const int buttonRemove = 3;
 const int buttonStart = 12;
-
+//pins for rgb and buzzer
 const int buzzerPin = 4, bluePin = 5, greenPin = 6, redPin = 7;
 
-bool running = false;
-unsigned long startTime = 0, previosSecond = 0;
-
+//coordinates for timer design
 const int xTimer = 5, widthTimer = 230, heightTimer = 80, maxTimers = 3;
-
+//timer and page handling variables
 int timers = 0, selectedTimer = -1, menuField = 0, lastMenuField = -1;
 int selectedOption = -1, page = 0;
 bool menuNeedsRedraw = false;
@@ -36,10 +31,10 @@ int settingsField = 0, lastSettingsField = -1;
 bool settingsNeedsRedraw = false;
 unsigned long lastTriggerTime = 0;
 const unsigned long TRIGGER_RED_DURATION = 600;
-
+//invert color variables
 bool inverted = 0;
 bool gold = 1;
-
+//flicker handling variables
 int lastButtonOkState = HIGH;
 int lastButtonAddState = HIGH;
 int lastArrowUpState = HIGH;
@@ -49,8 +44,9 @@ int lastArrowLeftState = HIGH;
 int lastButtonEscState = HIGH;
 int lastRemoveState = HIGH;
 int lastStartState = HIGH;
-
+//middle text variables
 int charWidth = 6, charHeight = 8;
+//object for timer functionality
 struct TimerData {
   uint8_t digits[6];
   unsigned long remainingMillis;
@@ -60,7 +56,6 @@ struct TimerData {
   unsigned long lastUpdateMillis;
   unsigned long stopwatchElapsedMillis;
   bool triggered;
-
   bool lastSelected;
   bool lastEditing;
   bool lastRunning;
@@ -80,6 +75,7 @@ void textMiddle(int Width, int Height, int Color, const char* string, int screen
 void drawSettingsMenu();
 void deleteTimer(int index);
 void (* resetFunc) (void) = 0;
+void navtimer(int minusOrPlus);
 
 void setup() {
   Serial.begin(115200);
@@ -110,7 +106,7 @@ void setup() {
 
   // intro
   textMiddle(12, 16, GOLD, "Project Chronos", ILI9341_WHITE, 2, 1500);
-  textMiddle(12, 16, ILI9341_BLACK, "Version 1.12", ILI9341_WHITE, 2, 700);
+  textMiddle(12, 16, ILI9341_BLACK, "Version 1.13", ILI9341_WHITE, 2, 700);
 
   // initialize timers data
   for (int i=0; i<maxTimers; ++i) {
@@ -175,14 +171,14 @@ void loop() {
       }
 
       if (selectedTimer >= 0 && timerArr[selectedTimer].editing) {
-        delay(200);
+        delay(75);
         lastButtonAddState = stateButtonAdd;
         return;
     }
 
       drawTimer(idx);
     }
-    delay(200);
+    delay(75);
   }
   lastButtonAddState = stateButtonAdd;
 
@@ -234,7 +230,7 @@ void loop() {
           drawSubPage("Restart", "");
           break;
       }
-      delay(140);
+      delay(75);
     } else if (page == 11) {
       if (gold == 1) {
         inverted = 1;
@@ -254,14 +250,9 @@ void loop() {
         timerArr[selectedTimer].lastRemainingSec = 0xFFFFFFFFUL;
         timerArr[selectedTimer].lastStopwatchSec = 0xFFFFFFFFUL;
         timerArr[selectedTimer].lastEditDigit = -99;
-      } else {
-        running = !running;
-        if (running) {
-          startTime = millis() - (previosSecond * 1000UL);
-        }
       }
     }
-    delay(140);
+    delay(75);
   }
 
 if (stateArrowLeft == LOW && lastArrowLeftState == HIGH) { 
@@ -269,20 +260,9 @@ if (stateArrowLeft == LOW && lastArrowLeftState == HIGH) {
     timerArr[selectedTimer].editDigit--;
     if (timerArr[selectedTimer].editDigit < 0) timerArr[selectedTimer].editDigit = 5;
   } else if (page == 0 && timers > 0) {
-      int oldSelected = selectedTimer;
-      selectedTimer--;
-      if (selectedTimer < 0) selectedTimer = timers - 1;
-
-      if (oldSelected >= 0) {
-        timerArr[oldSelected].lastSelected = false;
-        drawTimer(oldSelected);
-      }
-      if (selectedTimer >= 0) {
-        timerArr[selectedTimer].lastSelected = false;
-        drawTimer(selectedTimer);
-      }
+      navtimer(-1);
   }
-  delay(100);
+  delay(75);
 }
 
 if (stateArrowRight == LOW && lastArrowRightState == HIGH) {
@@ -290,20 +270,9 @@ if (stateArrowRight == LOW && lastArrowRightState == HIGH) {
     timerArr[selectedTimer].editDigit++;
     if (timerArr[selectedTimer].editDigit > 5) timerArr[selectedTimer].editDigit = 0;
   } else if (page == 0 && timers > 0) {
-      int oldSelected = selectedTimer;
-      selectedTimer++;
-      if (selectedTimer >= timers) selectedTimer = 0;
-
-      if (oldSelected >= 0) {
-        timerArr[oldSelected].lastSelected = false;
-        drawTimer(oldSelected);
-      }
-      if (selectedTimer >= 0) {
-        timerArr[selectedTimer].lastSelected = false;
-        drawTimer(selectedTimer);
-      }
+      navtimer(+1);
   }
-  delay(100);
+  delay(75);
 }
   lastArrowLeftState = stateArrowLeft;
   lastArrowRightState = stateArrowRight;
@@ -316,18 +285,7 @@ if (stateArrowRight == LOW && lastArrowRightState == HIGH) {
       timerArr[selectedTimer].digits[di]++;
       if (timerArr[selectedTimer].digits[di] > maxv) timerArr[selectedTimer].digits[di] = 0;
     } else if (page == 0 && timers > 0) {
-      int oldSelected = selectedTimer;
-      selectedTimer--;
-      if (selectedTimer < 0) selectedTimer = timers - 1;
-
-      if (oldSelected >= 0) {
-        timerArr[oldSelected].lastSelected = false;
-        drawTimer(oldSelected);
-      }
-      if (selectedTimer >= 0) {
-        timerArr[selectedTimer].lastSelected = false;
-        drawTimer(selectedTimer);
-      }
+      navtimer(-1);
     } else if (page == 1) {
       menuField--;
       if (menuField < 0) menuField = 3;
@@ -337,7 +295,7 @@ if (stateArrowRight == LOW && lastArrowRightState == HIGH) {
       if (settingsField < 0) settingsField = 6;
       settingsNeedsRedraw = true;
     }
-    delay(100);
+    delay(75);
   }
   if (stateArrowDown == LOW && lastArrowDownState == HIGH) {
     if (page == 0 && selectedTimer >= 0 && selectedTimer < timers && timerArr[selectedTimer].editing) {
@@ -347,18 +305,7 @@ if (stateArrowRight == LOW && lastArrowRightState == HIGH) {
       if (timerArr[selectedTimer].digits[di] == 0) timerArr[selectedTimer].digits[di] = maxv;
       else timerArr[selectedTimer].digits[di]--;
     } else if (page == 0 && timers > 0) {
-      int oldSelected = selectedTimer;
-      selectedTimer++;
-      if (selectedTimer >= timers) selectedTimer = 0;
-
-      if (oldSelected >= 0) {
-        timerArr[oldSelected].lastSelected = false;
-        drawTimer(oldSelected);
-      }
-      if (selectedTimer >= 0) {
-        timerArr[selectedTimer].lastSelected = false;
-        drawTimer(selectedTimer);
-      }
+      navtimer(+1);
     } else if (page == 1) {
       menuField++;
       if (menuField > 3) menuField = 0;
@@ -368,7 +315,7 @@ if (stateArrowRight == LOW && lastArrowRightState == HIGH) {
       if (settingsField > 6) settingsField = 0;
       settingsNeedsRedraw = true;
     }
-    delay(100);
+    delay(75);
   }
   lastArrowDownState = stateArrowDown;
   lastArrowUpState = stateArrowUp;
@@ -382,7 +329,7 @@ if (stateArrowRight == LOW && lastArrowRightState == HIGH) {
         }
         deleteTimer(selectedTimer);
     }
-    delay(150);
+    delay(75);
 }
   lastRemoveState = stateRemove;
 
@@ -397,7 +344,7 @@ if (stateStart == LOW && lastStartState == HIGH) { //start-pause-resume
             }
         }
     }
-    delay(120);
+    delay(75);
 }
 lastStartState = stateStart;
 
@@ -443,7 +390,7 @@ lastStartState = stateStart;
 }
 
     if (stateButtonEsc == LOW && lastButtonEscState == HIGH) {
-  delay(200);
+  delay(75);
   
   if (page == 0) { // Main page
     if (selectedTimer >= 0 && selectedTimer < timers && timerArr[selectedTimer].editing) {
@@ -845,11 +792,11 @@ void drawSubPage(const char* title, const char* content) {
     tft.print(F(" SUPPORT:\n\n  help.projectchronos@gmail.com"));
   } 
   else if (strcmp(title, "About Us") == 0) {
-    tft.print(F(" CHRONOS V1.12\n\n"));
+    tft.print(F(" CHRONOS V1.13\n\n"));
     tft.print(F(" By University Antonine\n\n\n"));
     tft.print(F(" TEAM (4):\n\n  Abdallah (Lead Software)\n  Roni (Software and Hardware)\n  Jawad (Lead Hardware)\n  Adam (Testing)\n\n\n"));
-    tft.print(F(" FEATURES:\n\n  3 timers, RGB LEDs\n  Audio alerts, Stopwatch\n  Edit mode, and Menu\n\n\n"));
-    tft.print(F(" Last Update: 11/11/2025\n\n  -Optimization (Memory)\n  -Fixed Flickering of Timers\n  -Redo of Menu Design\n  -Fixed some minor bugs\n  -Added Light Mode\n  Version: 1.12\n\n\n"));
+    tft.print(F(" FEATURES:\n\n  3 timers, RGB LEDs\n  Audio alerts, Stopwatch\n  Edit mode, and Menu.\n  A settings with different features.\n\n\n"));
+    tft.print(F(" Last Update: 16/11/2025\n\n  -Optimization\n  -Fixed huge delay\n  Version: 1.13\n\n\n"));
     tft.print(F(" Thank you for using Project Chronos"));
   }
   else if (strcmp(title, "Contact Us") == 0) {
@@ -976,6 +923,20 @@ void drawSettingsMenu() {
   }
   
   lastSettingsField = settingsField;
+}
+
+void navtimer(int minusOrPlus) {
+  if (timers == 0) return;
+  int oldSelected = selectedTimer;
+  selectedTimer += minusOrPlus;
+  if (selectedTimer >= timers) selectedTimer = 0;
+  if (selectedTimer < 0) selectedTimer = timers - 1;
+  if (oldSelected >= 0) {
+    timerArr[oldSelected].lastSelected = false;
+    drawTimer(oldSelected);
+  }
+  timerArr[selectedTimer].lastSelected = false;
+  drawTimer(selectedTimer);
 }
 
 void mainPage() { //main page
