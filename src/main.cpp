@@ -5,10 +5,10 @@
 
 const int GOLD = 0xFEA0; //gold color
 //pins for lcd
-const int TFT_CS = 10, TFT_DC = 9, TFT_RST = 8;
+const int TFT_CS = 9, TFT_DC = 11, TFT_RST = 10; // mosi 12, sck 13 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 //pins for buttons
-const int buttonEsc = A0; //pins for butt
+const int buttonEsc = A0; //pins for buttons
 const int arrowUp = A1;
 const int arrowDown = A2;
 const int arrowRight = A4;
@@ -16,9 +16,9 @@ const int arrowLeft = A3;
 const int buttonAdd = A5;
 const int buttonOk = 2;
 const int buttonRemove = 3;
-const int buttonStart = 12;
+const int buttonStart = 4;
 //pins for rgb and buzzer
-const int buzzerPin = 4, bluePin = 5, greenPin = 6, redPin = 7;
+const int buzzerPin = 5, bluePin = 8, greenPin = 7, redPin = 6;
 
 //coordinates for timer design
 const int xTimer = 5, widthTimer = 230, heightTimer = 80, maxTimers = 3;
@@ -30,7 +30,7 @@ int lightUp = 0;
 int settingsField = 0, lastSettingsField = -1;
 bool settingsNeedsRedraw = false;
 unsigned long lastTriggerTime = 0;
-const unsigned long TRIGGER_RED_DURATION = 600;
+const unsigned long TRIGGER_RED_DURATION = 1200;
 //invert color variables
 bool inverted = 0;
 bool gold = 1;
@@ -65,6 +65,7 @@ struct TimerData {
   int lastEditDigit;
 };
 
+
 TimerData timerArr[maxTimers];
 
 void mainPage();
@@ -78,7 +79,9 @@ void (* resetFunc) (void) = 0;
 void navtimer(int minusOrPlus);
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
+  Serial.println("Arduino is running successfully.");
+  Serial.println("Try 1");
 
   // pins
   pinMode(buttonOk, INPUT_PULLUP);
@@ -143,7 +146,6 @@ void loop() {
   int stateStart = digitalRead(buttonStart);
 
   unsigned long now = millis();
-
 
     if (stateButtonAdd == LOW && lastButtonAddState == HIGH) { //timer functionallity
     if (page == 0 && timers < maxTimers) {
