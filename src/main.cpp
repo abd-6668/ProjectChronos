@@ -16,9 +16,9 @@ const int arrowLeft = A3;
 const int buttonAdd = A5;
 const int buttonOk = 2;
 const int buttonRemove = 3;
-const int buttonStart = 4;
+const int buttonStart = 12;
 //pins for rgb and buzzer
-const int buzzerPin = 5, bluePin = 8, greenPin = 7, redPin = 6;
+const int buzzerPin = 4, bluePin = 5, greenPin = 6, redPin = 7;
 
 //coordinates for timer design
 const int xTimer = 5, widthTimer = 230, heightTimer = 80, maxTimers = 3;
