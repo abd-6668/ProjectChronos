@@ -5,7 +5,7 @@
 
 const int GOLD = 0xFEA0; //gold color
 //pins for lcd
-const int TFT_CS = 9, TFT_DC = 11, TFT_RST = 10; // mosi 12, sck 13 
+const int TFT_CS = 10, TFT_DC = 9, TFT_RST = 8;
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 //pins for buttons
 const int buttonEsc = A0; //pins for buttons
@@ -80,8 +80,6 @@ void navtimer(int minusOrPlus);
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("Arduino is running successfully.");
-  Serial.println("Try 1");
 
   // pins
   pinMode(buttonOk, INPUT_PULLUP);

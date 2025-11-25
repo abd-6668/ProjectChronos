@@ -168,7 +168,7 @@
     [ "lcd1:D/C", "bb2:4t.a", "gold", [ "v0" ] ],
     [ "lcd1:MOSI", "bb2:5t.a", "gold", [ "v0" ] ],
     [ "lcd1:SCK", "bb2:6t.a", "gold", [ "v0" ] ],
-    [ "lcd1:LED", "bb2:7t.a", "gold", [ "v0" ] ],
+    [ "lcd1:LED", "bb2:bp.3", "red", [ "v0" ] ],
     [ "uno:5V", "bb2:bp.25", "red", [ "v143.9", "h599" ] ],
     [ "bb2:1t.a", "lcd1:VCC", "gold", [ "v0", "h-19.2" ] ],
     [ "bz1:2", "r12:2", "red", [ "v0" ] ],
